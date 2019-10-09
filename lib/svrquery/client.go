@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/multiplay/go-svrquery/lib/svrquery/protocol"
+	// Register all known protocols
 	_ "github.com/multiplay/go-svrquery/lib/svrquery/protocol/all"
 )
 
