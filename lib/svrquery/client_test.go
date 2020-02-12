@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 )
@@ -28,7 +29,7 @@ func TestNewClient(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			c, err := NewClient(tc.protocol, tc.addr)
+			c, err := NewClient(tc.protocol, tc.addr, WithKey("test"), WithTimeout(time.Second))
 			if tc.err {
 				require.Error(t, err)
 				require.Nil(t, c)

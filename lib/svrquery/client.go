@@ -17,6 +17,9 @@ var (
 	DefaultNetwork = "udp"
 )
 
+// Option represents a Client option.
+type Option func(*Client) error
+
 // Client provides the ability to query a server.
 type Client struct {
 	protocol string
@@ -30,7 +33,7 @@ type Client struct {
 }
 
 // WithKey sets the key used for request by for the client.
-func WithKey(key string) func(*Client) error {
+func WithKey(key string) Option {
 	return func(c *Client) error {
 		c.key = key
 		return nil
@@ -38,7 +41,7 @@ func WithKey(key string) func(*Client) error {
 }
 
 // WithTimeout sets the read and write timeout for the client.
-func WithTimeout(t time.Duration) func(*Client) error {
+func WithTimeout(t time.Duration) Option {
 	return func(c *Client) error {
 		c.timeout = t
 		return nil
@@ -46,7 +49,7 @@ func WithTimeout(t time.Duration) func(*Client) error {
 }
 
 // NewClient creates a new client that talks to addr.
-func NewClient(proto, addr string, options ...func(*Client) error) (*Client, error) {
+func NewClient(proto, addr string, options ...Option) (*Client, error) {
 	f, err := protocol.Get(proto)
 	if err != nil {
 		return nil, err
