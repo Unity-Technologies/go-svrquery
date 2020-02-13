@@ -28,3 +28,9 @@ func Get(name string) (Creator, error) {
 	}
 	return f, nil
 }
+
+// Supported returns true if protocol name is supported.
+func Supported(name string) bool {
+	_, ok := registry[name]
+	return ok
+}
