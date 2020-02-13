@@ -21,6 +21,7 @@ type Responser interface {
 type Client interface {
 	io.ReadWriteCloser
 	Key() string
+	Address() string
 }
 
 // Charter is an interface which is implemented by types which support custom netdata

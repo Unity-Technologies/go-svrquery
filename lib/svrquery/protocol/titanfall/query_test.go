@@ -1,10 +1,9 @@
 package titanfall
 
 import (
-	"io/ioutil"
-	"path/filepath"
 	"testing"
 
+	"github.com/multiplay/go-svrquery/lib/svrquery/clienttest"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 )
@@ -59,38 +58,6 @@ var (
 	}
 )
 
-type mockClient struct {
-	mock.Mock
-}
-
-func (mc *mockClient) Write(b []byte) (int, error) {
-	args := mc.Called(b)
-	return args.Int(0), args.Error(1)
-}
-
-func (mc *mockClient) Read(b []byte) (int, error) {
-	args := mc.Called(b)
-	d := args.Get(0).([]byte)
-	copy(b, d)
-	return len(d), args.Error(1)
-}
-
-func (mc *mockClient) Close() error {
-	args := mc.Called()
-	return args.Error(0)
-}
-
-func (mc *mockClient) Key() string {
-	args := mc.Called()
-	return args.String(0)
-}
-
-func loadData(t *testing.T, filename string) []byte {
-	d, err := ioutil.ReadFile(filepath.Join(testDir, filename))
-	require.NoError(t, err)
-	return d
-}
-
 func TestQuery(t *testing.T) {
 	keyed := basic
 	keyed.Version = 5
@@ -123,9 +90,9 @@ func TestQuery(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			req := loadData(t, tc.request)
-			resp := loadData(t, tc.response)
-			m := &mockClient{}
+			req := clienttest.LoadData(t, testDir, tc.request)
+			resp := clienttest.LoadData(t, testDir, tc.response)
+			m := &clienttest.MockClient{}
 
 			m.On("Write", req).Return(len(req), nil)
 			m.On("Read", mock.AnythingOfType("[]uint8")).Return(resp, nil)

@@ -111,9 +111,14 @@ func (c *Client) Close() error {
 	return c.c.Close()
 }
 
-// Key implements common.Client.
+// Key implements protocol.Client.
 func (c *Client) Key() string {
 	return c.key
+}
+
+// Address implements protocol.Client.
+func (c *Client) Address() string {
+	return c.addr
 }
 
 // Protocol returns the protocol of the client.
