@@ -31,5 +31,16 @@ var (
 				{ID: "%d_max_user_cmd_time", Name: "max", Div: common.Dim3DP},
 			},
 		},
+		{
+			ID:    "%d_phase",
+			Title: "Phase",
+			Ctx:   "clanforge.phase",
+			Units: "Phase",
+			Fam:   "serverid %d",
+			Type:  module.Line,
+			Dims: module.Dims{
+				{ID: "%d_phase", Name: "phase"},
+			},
+		},
 	}
 )

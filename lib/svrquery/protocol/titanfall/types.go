@@ -106,6 +106,9 @@ type Client struct {
 
 // Collect implements protocol.Collector.
 func (i Info) Collect(serverID int64, mx map[string]int64) {
+	if i.Version >= 2 {
+		mx[fmt.Sprintf("%d_phase", serverID)] = int64(i.Phase)
+	}
 	if i.Version >= 5 {
 		mx[fmt.Sprintf("%d_avg_frame_time", serverID)] = int64(i.AverageFrameTime * common.Dim3DP)
 		mx[fmt.Sprintf("%d_max_frame_time", serverID)] = int64(i.MaxFrameTime * common.Dim3DP)
