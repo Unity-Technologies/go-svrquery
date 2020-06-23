@@ -64,6 +64,9 @@ func (q *queryer) sendQuery(requestedChunks byte) error {
 		return err
 	}
 
+	// We can only use a challenge once so ensure it's reset.
+	defer q.resetChallenge()
+
 	_, err := q.c.Write(pkt.Bytes())
 	return err
 }
