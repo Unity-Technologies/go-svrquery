@@ -74,7 +74,7 @@ func TestQuery(t *testing.T) {
 			// Challenge
 			buf.Reset()
 			buf.WriteByte(ChallengeResponseType)
-			binary.Write(buf, binary.BigEndian, cid)
+			require.NoError(t, binary.Write(buf, binary.BigEndian, cid))
 			chalResp := buf.Bytes()
 			m.On("Write", chalReq).Return(len(chalReq), nil).Once()
 			m.On("Read", mock.AnythingOfType("[]uint8")).Return(chalResp, nil).Once()

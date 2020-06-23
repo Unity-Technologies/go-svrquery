@@ -157,10 +157,7 @@ func (q *queryer) readQuerySinglePacket(r *packetReader, version uint16, request
 		l -= qr.TeamInfo.ChunkLength + uint32(Uint32.Size())
 	}
 
-	if l < 0 {
-		// If we have read more bytes than expected, the packet is malformed
-		return nil, NewErrMalformedPacketf("expected packet length of %v, but have %v bytes remaining", pktLen, l)
-	} else if l > 0 {
+	if l > 0 {
 		// If we have extra bytes remaining, we assume they are new fields from a future
 		// query version and discard them.
 		if _, err := io.CopyN(ioutil.Discard, r, int64(l)); err != nil {
