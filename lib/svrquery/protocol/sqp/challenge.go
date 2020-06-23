@@ -2,7 +2,6 @@ package sqp
 
 import (
 	"bytes"
-	"encoding/binary"
 )
 
 // Challenge sends a challenge request and validates a response
@@ -15,16 +14,17 @@ func (q *queryer) Challenge() error {
 	if err != nil {
 		return err
 	} else if pktType != ChallengeResponseType {
-		return NewErrMalformedPacketf("was expecting %v for response type, got %v", ChallengeResponseType, pktType)
+		return NewErrMalformedPacketf("was expecting 0x%02x for response type, got 0x%02x", ChallengeResponseType, pktType)
 	}
 
-	return q.readChallenge()
+	q.challengeID, err = q.readChallenge()
+	return err
 }
 
 // sendChallenge writes a challenge request
 func (q *queryer) sendChallenge() error {
 	pkt := &bytes.Buffer{}
-	if err := binary.Write(pkt, binary.BigEndian, ChallengeRequestType); err != nil {
+	if err := pkt.WriteByte(ChallengeRequestType); err != nil {
 		return err
 	}
 
@@ -38,14 +38,17 @@ func (q *queryer) sendChallenge() error {
 	return err
 }
 
-// readChallenge reads the challenge response body and stores the challenge id
-// for use in subsequent requests.
-func (q *queryer) readChallenge() (err error) {
-	q.challengeID, err = q.reader.ReadUint32()
-	return err
+// readChallenge reads the challenge from the response body and returns it.
+func (q *queryer) readChallenge() (uint32, error) {
+	return q.reader.ReadUint32()
 }
 
-// resetChallenge resets the challengeID so a new one will be generated when needed.
-func (q *queryer) resetChallenge() {
-	q.challengeID = 0
+// validateChallenge reads and validates the challenge of a request against our current challengeID.
+func (q *queryer) validateChallenge() error {
+	if id, err := q.readChallenge(); err != nil {
+		return err
+	} else if id != q.challengeID {
+		return NewErrMalformedPacketf("was expecting 0x%04x for challengeID, got 0x%04x", q.challengeID, id)
+	}
+	return nil
 }

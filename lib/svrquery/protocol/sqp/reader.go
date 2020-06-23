@@ -4,8 +4,6 @@ import (
 	"encoding/binary"
 	"fmt"
 	"io"
-	"net"
-	"time"
 	"unicode/utf8"
 )
 
@@ -63,31 +61,4 @@ func (pr *packetReader) ReadString() (int64, string, error) {
 	}
 
 	return int64(length + 1), string(buf), err
-}
-
-// deadlineReadWriter is a reader that applies a connection deadline before every read
-type deadlineReadWriter struct {
-	timeout time.Duration
-	net.Conn
-}
-
-// NewDeadlineReadWriter returns a new deadlineReadWriter
-func newDeadlineReadWriter(c net.Conn, t time.Duration) *deadlineReadWriter {
-	return &deadlineReadWriter{Conn: c, timeout: t}
-}
-
-// Read implements the io.Reader interface
-func (dr *deadlineReadWriter) Read(p []byte) (int, error) {
-	if err := dr.Conn.SetReadDeadline(time.Now().Add(dr.timeout)); err != nil {
-		return 0, err
-	}
-	return dr.Conn.Read(p)
-}
-
-// Write implements the io.Writer interface
-func (dr *deadlineReadWriter) Write(p []byte) (int, error) {
-	if err := dr.Conn.SetWriteDeadline(time.Now().Add(dr.timeout)); err != nil {
-		return 0, err
-	}
-	return dr.Conn.Write(p)
 }
