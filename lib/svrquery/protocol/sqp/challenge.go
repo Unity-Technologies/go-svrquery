@@ -44,3 +44,8 @@ func (q *queryer) readChallenge() (err error) {
 	q.challengeID, err = q.reader.ReadUint32()
 	return err
 }
+
+// resetChallenge resets the challengeID so a new one will be generated when needed.
+func (q *queryer) resetChallenge() {
+	q.challengeID = 0
+}
