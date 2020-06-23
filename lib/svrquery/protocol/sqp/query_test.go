@@ -1,6 +1,8 @@
 package sqp
 
 import (
+	"bytes"
+	"encoding/binary"
 	"testing"
 
 	"github.com/multiplay/go-svrquery/lib/svrquery/clienttest"
@@ -17,9 +19,6 @@ func newClient(requestedChunks byte) (*clienttest.MockClient, *queryer) {
 	m.On("Address").Return("127.0.0.1:8000")
 	c := newQueryer(requestedChunks, DefaultMaxPacketSize, m)
 
-	// Act as if we've already issued a challenge/response
-	c.challengeID = 1
-
 	return m, c
 }
 
@@ -28,7 +27,7 @@ func TestQuery(t *testing.T) {
 		name   string
 		chunks byte
 		multi  int
-		f      func(t *testing.T, c *queryer)
+		f      func(t *testing.T, challengeID uint32, c *queryer)
 	}{
 		{
 			name:   "info_single",
@@ -63,34 +62,53 @@ func TestQuery(t *testing.T) {
 		},
 	}
 
-	for _, tc := range cases {
+	buf := &bytes.Buffer{}
+	chalReq := clienttest.LoadData(t, testDir, "challenge_success_request")
+
+	for i, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
+			cid := uint32(i + 1)
 			req := clienttest.LoadData(t, testDir, tc.name+"_request")
 
 			m, c := newClient(tc.chunks)
-			m.On("Write", req).Return(len(req), nil)
+			// Challenge
+			buf.Reset()
+			buf.WriteByte(ChallengeResponseType)
+			binary.Write(buf, binary.BigEndian, cid)
+			chalResp := buf.Bytes()
+			m.On("Write", chalReq).Return(len(chalReq), nil).Once()
+			m.On("Read", mock.AnythingOfType("[]uint8")).Return(chalResp, nil).Once()
+			// Request
+			testSetChallenge(req, chalResp)
+			m.On("Write", req).Return(len(req), nil).Once()
 
 			if tc.multi > 0 {
 				pkts := clienttest.LoadMultiData(t, tc.multi, testDir, tc.name+"_response")
 				for _, resp := range pkts {
+					testSetChallenge(resp, chalResp)
 					m.On("Read", mock.AnythingOfType("[]uint8")).Return(resp, nil).Once()
 				}
 			} else {
 				resp := clienttest.LoadData(t, testDir, tc.name+"_response")
-				m.On("Read", mock.AnythingOfType("[]uint8")).Return(resp, nil)
+				testSetChallenge(resp, chalResp)
+				m.On("Read", mock.AnythingOfType("[]uint8")).Return(resp, nil).Once()
 			}
 
-			tc.f(t, c)
+			tc.f(t, cid, c)
 		})
 	}
 }
 
-func testQueryInfoSinglePacket(t *testing.T, c *queryer) {
+func testSetChallenge(dest, src []byte) {
+	copy(dest[1:5], src[1:5])
+}
+
+func testQueryInfoSinglePacket(t *testing.T, challengeID uint32, c *queryer) {
 	r, err := c.Query()
 	require.NoError(t, err, "query request failed")
 
 	qr := r.(*QueryResponse)
-	require.Equal(t, uint32(256), c.challengeID, "expected correct challenge id")
+	require.Equal(t, challengeID, c.challengeID, "expected correct challenge id")
 
 	require.NotNil(t, qr, "expected query response")
 	require.NotNil(t, qr.ServerInfo, "expected server info")
@@ -104,7 +122,7 @@ func testQueryInfoSinglePacket(t *testing.T, c *queryer) {
 	require.Equal(t, uint16(1025), qr.ServerInfo.Port)
 }
 
-func testQueryServerInfoSinglePacketMalformed(t *testing.T, c *queryer) {
+func testQueryServerInfoSinglePacketMalformed(t *testing.T, challengeID uint32, c *queryer) {
 	_, err := c.Query()
 	require.Error(t, err, "query request should have failed")
 
@@ -112,12 +130,12 @@ func testQueryServerInfoSinglePacketMalformed(t *testing.T, c *queryer) {
 	require.Truef(t, ok, "expected malformed packet err, got: %v", err)
 }
 
-func testQueryServerInfoMultiPacket(t *testing.T, c *queryer) {
+func testQueryServerInfoMultiPacket(t *testing.T, challengeID uint32, c *queryer) {
 	r, err := c.Query()
 	require.NoError(t, err, "query request should not have failed")
 	qr := r.(*QueryResponse)
 
-	require.Equal(t, uint32(256), c.challengeID, "expected correct challenge id")
+	require.Equal(t, challengeID, c.challengeID, "expected correct challenge id")
 
 	require.NotNil(t, qr, "expected query response")
 	require.NotNil(t, qr.ServerInfo, "expected server info")
@@ -131,12 +149,12 @@ func testQueryServerInfoMultiPacket(t *testing.T, c *queryer) {
 	require.Equal(t, uint16(1025), qr.ServerInfo.Port)
 }
 
-func testQueryServerRulesSinglePacket(t *testing.T, c *queryer) {
+func testQueryServerRulesSinglePacket(t *testing.T, challengeID uint32, c *queryer) {
 	r, err := c.Query()
 	require.NoError(t, err, "query request should not have failed")
 	qr := r.(*QueryResponse)
 
-	require.Equal(t, uint32(256), c.challengeID, "expected correct challenge id")
+	require.Equal(t, challengeID, c.challengeID, "expected correct challenge id")
 
 	require.NotNil(t, qr, "expected query response")
 	require.NotNil(t, qr.ServerRules, "expected server rules")
@@ -149,12 +167,12 @@ func testQueryServerRulesSinglePacket(t *testing.T, c *queryer) {
 	require.Equal(t, "string", qr.ServerRules.Rules["rule 5"].String())
 }
 
-func testQueryPlayerInfoSinglePacket(t *testing.T, c *queryer) {
+func testQueryPlayerInfoSinglePacket(t *testing.T, challengeID uint32, c *queryer) {
 	r, err := c.Query()
 	require.NoError(t, err, "query request should not have failed")
 	qr := r.(*QueryResponse)
 
-	require.Equal(t, uint32(256), c.challengeID, "expected correct challenge id")
+	require.Equal(t, challengeID, c.challengeID, "expected correct challenge id")
 
 	require.NotNil(t, qr, "expected query response")
 	require.NotNil(t, qr.PlayerInfo, "expected player info")
@@ -175,12 +193,12 @@ func testQueryPlayerInfoSinglePacket(t *testing.T, c *queryer) {
 	require.Equal(t, "STRING", qr.PlayerInfo.Players[1]["field5"].String())
 }
 
-func testQueryTeamInfoSinglePacket(t *testing.T, c *queryer) {
+func testQueryTeamInfoSinglePacket(t *testing.T, challengeID uint32, c *queryer) {
 	r, err := c.Query()
 	require.NoError(t, err, "query request should not have failed")
 	qr := r.(*QueryResponse)
 
-	require.Equal(t, uint32(256), c.challengeID, "expected correct challenge id")
+	require.Equal(t, challengeID, c.challengeID, "expected correct challenge id")
 
 	require.NotNil(t, qr, "expected query response")
 	require.NotNil(t, qr.TeamInfo, "expected Team info")

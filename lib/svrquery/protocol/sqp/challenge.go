@@ -2,7 +2,6 @@ package sqp
 
 import (
 	"bytes"
-	"encoding/binary"
 )
 
 // Challenge sends a challenge request and validates a response
@@ -15,7 +14,7 @@ func (q *queryer) Challenge() error {
 	if err != nil {
 		return err
 	} else if pktType != ChallengeResponseType {
-		return NewErrMalformedPacketf("was expecting %v for response type, got %v", ChallengeResponseType, pktType)
+		return NewErrMalformedPacketf("was expecting 0x%02x for response type, got 0x%02x", ChallengeResponseType, pktType)
 	}
 
 	q.challengeID, err = q.readChallenge()
@@ -25,7 +24,7 @@ func (q *queryer) Challenge() error {
 // sendChallenge writes a challenge request
 func (q *queryer) sendChallenge() error {
 	pkt := &bytes.Buffer{}
-	if err := binary.Write(pkt, binary.BigEndian, ChallengeRequestType); err != nil {
+	if err := pkt.WriteByte(ChallengeRequestType); err != nil {
 		return err
 	}
 
@@ -49,7 +48,7 @@ func (q *queryer) validateChallenge() error {
 	if id, err := q.readChallenge(); err != nil {
 		return err
 	} else if id != q.challengeID {
-		return NewErrMalformedPacketf("unexpected challengeID 0x%0x wanted 0x%0x", id, q.challengeID)
+		return NewErrMalformedPacketf("was expecting 0x%04x for challengeID, got 0x%04x", q.challengeID, id)
 	}
 	return nil
 }

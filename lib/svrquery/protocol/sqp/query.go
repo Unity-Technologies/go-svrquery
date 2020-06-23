@@ -47,7 +47,7 @@ func (q *queryer) sendQuery(requestedChunks byte) error {
 	}
 
 	pkt := &bytes.Buffer{}
-	if err := binary.Write(pkt, binary.BigEndian, QueryRequestType); err != nil {
+	if err := pkt.WriteByte(QueryRequestType); err != nil {
 		return err
 	}
 
@@ -59,7 +59,7 @@ func (q *queryer) sendQuery(requestedChunks byte) error {
 		return err
 	}
 
-	if err := binary.Write(pkt, binary.BigEndian, requestedChunks); err != nil {
+	if err := pkt.WriteByte(requestedChunks); err != nil {
 		return err
 	}
 
@@ -72,7 +72,7 @@ func (q *queryer) readQueryHeader() (uint16, byte, byte, uint16, error) {
 	if err != nil {
 		return 0, 0, 0, 0, err
 	} else if pktType != QueryResponseType {
-		return 0, 0, 0, 0, NewErrMalformedPacketf("was expecting %v for response type, got %v", QueryResponseType, pktType)
+		return 0, 0, 0, 0, NewErrMalformedPacketf("was expecting 0x%02x for response type, got 0x%02x", QueryResponseType, pktType)
 	}
 
 	if err = q.validateChallenge(); err != nil {
