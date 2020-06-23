@@ -18,7 +18,8 @@ func (q *queryer) Challenge() error {
 		return NewErrMalformedPacketf("was expecting %v for response type, got %v", ChallengeResponseType, pktType)
 	}
 
-	return q.readChallenge()
+	q.challengeID, err = q.readChallenge()
+	return err
 }
 
 // sendChallenge writes a challenge request
@@ -38,14 +39,17 @@ func (q *queryer) sendChallenge() error {
 	return err
 }
 
-// readChallenge reads the challenge response body and stores the challenge id
-// for use in subsequent requests.
-func (q *queryer) readChallenge() (err error) {
-	q.challengeID, err = q.reader.ReadUint32()
-	return err
+// readChallenge reads the challenge from the response body and returns it.
+func (q *queryer) readChallenge() (uint32, error) {
+	return q.reader.ReadUint32()
 }
 
-// resetChallenge resets the challengeID so a new one will be generated when needed.
-func (q *queryer) resetChallenge() {
-	q.challengeID = 0
+// validateChallenge reads and validates the challenge of a request against our current challengeID.
+func (q *queryer) validateChallenge() error {
+	if id, err := q.readChallenge(); err != nil {
+		return err
+	} else if id != q.challengeID {
+		return NewErrMalformedPacketf("unexpected challengeID 0x%0x wanted 0x%0x", id, q.challengeID)
+	}
+	return nil
 }

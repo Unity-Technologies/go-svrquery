@@ -54,7 +54,9 @@ func TestQuery(t *testing.T) {
 
 	c, err := NewClient(proto, addr)
 	require.NoError(t, err)
-	r, err := c.Query()
-	require.NoError(t, err)
-	fmt.Printf("%#v\n", r)
+	for i := 0; i < 5; i++ {
+		r, err := c.Query()
+		require.NoError(t, err)
+		fmt.Printf("%#v\n", r)
+	}
 }

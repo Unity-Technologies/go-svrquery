@@ -33,12 +33,6 @@ func newQueryer(requestedChunks byte, maxPktSize int, c protocol.Client) *querye
 
 // Query implements protocol.Queryer.
 func (q *queryer) Query() (protocol.Responser, error) {
-	if q.challengeID == 0 {
-		if err := q.Challenge(); err != nil {
-			return nil, err
-		}
-	}
-
 	if err := q.sendQuery(q.requestedChunks); err != nil {
 		return nil, err
 	}
@@ -47,6 +41,11 @@ func (q *queryer) Query() (protocol.Responser, error) {
 }
 
 func (q *queryer) sendQuery(requestedChunks byte) error {
+	// Each query requires a new challenge.
+	if err := q.Challenge(); err != nil {
+		return err
+	}
+
 	pkt := &bytes.Buffer{}
 	if err := binary.Write(pkt, binary.BigEndian, QueryRequestType); err != nil {
 		return err
@@ -64,9 +63,6 @@ func (q *queryer) sendQuery(requestedChunks byte) error {
 		return err
 	}
 
-	// We can only use a challenge once so ensure it's reset.
-	defer q.resetChallenge()
-
 	_, err := q.c.Write(pkt.Bytes())
 	return err
 }
@@ -79,7 +75,7 @@ func (q *queryer) readQueryHeader() (uint16, byte, byte, uint16, error) {
 		return 0, 0, 0, 0, NewErrMalformedPacketf("was expecting %v for response type, got %v", QueryResponseType, pktType)
 	}
 
-	if err = q.readChallenge(); err != nil {
+	if err = q.validateChallenge(); err != nil {
 		return 0, 0, 0, 0, err
 	}
 
