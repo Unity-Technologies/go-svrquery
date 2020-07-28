@@ -76,10 +76,18 @@ func (q *queryer) Query() (protocol.Responser, error) {
 	}
 
 	if i.Version > 2 {
-		// MatchState and Teams.
-		if err = r.Read(&i.MatchState); err != nil {
-			return nil, err
-		} else if err = q.teams(r, i); err != nil {
+		if i.Version > 5 {
+			// MatchState and Teams.
+			if err = r.Read(&i.MatchState); err != nil {
+				return nil, err
+			}
+		} else {
+			if err = r.Read(&i.MatchState.MatchStateV2); err != nil {
+				return nil, err
+			}
+		}
+
+		if err = q.teams(r, i); err != nil {
 			return nil, err
 		}
 	}
@@ -117,7 +125,29 @@ func (q *queryer) basicInfo(r *common.BinaryReader, i *Info) (err error) {
 		return err
 	} else if i.BasicInfo.PlaylistName, err = r.ReadString(); err != nil {
 		return err
-	} else if err = r.Read(&i.BasicInfo.NumClients); err != nil {
+	}
+
+	if i.Version > 6 {
+		var platformNum byte
+
+		if err = r.Read(&platformNum); err != nil {
+			return err
+		}
+
+		for j := 0; j < int(platformNum); j++ {
+			platformName, err := r.ReadString()
+			if err != nil {
+				return err
+			}
+			var platformPlayers byte
+			if err = r.Read(&platformPlayers); err != nil {
+				return err
+			}
+			i.BasicInfo.PlatformPlayers[platformName] = platformPlayers
+		}
+	}
+
+	if err = r.Read(&i.BasicInfo.NumClients); err != nil {
 		return err
 	} else if err = r.Read(&i.BasicInfo.MaxClients); err != nil {
 		return err

@@ -61,6 +61,7 @@ type BasicInfo struct {
 	NumClients      byte
 	MaxClients      byte
 	Map             string
+	PlatformPlayers map[string]byte
 }
 
 // PerformanceInfo represents frame information contained in a query response.
@@ -71,8 +72,9 @@ type PerformanceInfo struct {
 	MaxUserCommandTime     float32
 }
 
-// MatchState represents match state contained in a query response.
-type MatchState struct {
+// MatchStateV2 represents match state contained in a query response.
+// This contains a legacy v2 version of matchstate
+type MatchStateV2 struct {
 	Phase            byte
 	MaxRounds        byte
 	RoundsWonIMC     byte
@@ -80,6 +82,12 @@ type MatchState struct {
 	TimeLimit        uint16 // seconds
 	TimePassed       uint16 // seconds
 	MaxScore         uint16
+}
+
+// MatchState represents match state contained in a query response.
+type MatchState struct {
+	MatchStateV2
+	TeamsLeftWithPlayersNum byte
 }
 
 // Team represents a team in a query response.
