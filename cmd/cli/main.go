@@ -29,19 +29,18 @@ func main() {
 		os.Exit(1)
 	}
 
-	c, err := svrquery.NewClient(*proto, *address)
-	if err != nil {
+	if err := query(*proto, *address); err != nil {
 		l.Fatal(err)
 	}
-
-	if err = query(c); err != nil {
-		c.Close()
-		l.Fatal(err)
-	}
-	c.Close()
 }
 
-func query(c *svrquery.Client) error {
+func query(proto, address string) error {
+	c, err := svrquery.NewClient(proto, address)
+	if err != nil {
+		return err
+	}
+	defer c.Close()
+
 	r, err := c.Query()
 	if err != nil {
 		return err
