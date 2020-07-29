@@ -87,7 +87,7 @@ type MatchStateV2 struct {
 // MatchState represents match state contained in a query response.
 type MatchState struct {
 	MatchStateV2
-	TeamsLeftWithPlayersNum byte
+	TeamsLeftWithPlayersNum uint16
 }
 
 // Team represents a team in a query response.

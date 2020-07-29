@@ -113,7 +113,7 @@ func (q *queryer) instanceInfo(r *common.BinaryReader, i *Info) (err error) {
 	return err
 }
 
-// basicInfo decodes basic info from a response.
+// basicInfo decodes base info from a response.
 func (q *queryer) basicInfo(r *common.BinaryReader, i *Info) (err error) {
 	if err = r.Read(&i.BasicInfo.Port); err != nil {
 		return err
@@ -133,6 +133,7 @@ func (q *queryer) basicInfo(r *common.BinaryReader, i *Info) (err error) {
 		if err = r.Read(&platformNum); err != nil {
 			return err
 		}
+		i.BasicInfo.PlatformPlayers = make(map[string]byte, platformNum)
 
 		for j := 0; j < int(platformNum); j++ {
 			platformName, err := r.ReadString()
