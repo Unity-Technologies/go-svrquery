@@ -43,7 +43,7 @@ func main() {
 }
 ```
 
-CLU
+CLI
 -------------
 A cli is available in http://github.com/multiplay/go-svrquery/cmd/cli
 
