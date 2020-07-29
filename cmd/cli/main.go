@@ -33,11 +33,12 @@ func main() {
 	if err != nil {
 		l.Fatal(err)
 	}
-	defer c.Close()
 
 	if err = query(c); err != nil {
-		l.Println(err)
+		c.Close()
+		l.Fatal(err)
 	}
+	c.Close()
 }
 
 func query(c *svrquery.Client) error {
