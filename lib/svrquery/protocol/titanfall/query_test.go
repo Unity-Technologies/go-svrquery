@@ -69,7 +69,6 @@ func TestQuery(t *testing.T) {
 	keyed.MaxUserCommandTime = 7.678111
 
 	v7 := base
-	v7.Version = 7
 	v7.PlatformPlayers = map[string]byte{
 		"ps3": 16,
 		"pc":  6,
