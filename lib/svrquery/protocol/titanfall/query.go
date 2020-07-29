@@ -113,7 +113,7 @@ func (q *queryer) instanceInfo(r *common.BinaryReader, i *Info) (err error) {
 	return err
 }
 
-// basicInfo decodes base info from a response.
+// basicInfo decodes basic info from a response.
 func (q *queryer) basicInfo(r *common.BinaryReader, i *Info) (err error) {
 	if err = r.Read(&i.BasicInfo.Port); err != nil {
 		return err
