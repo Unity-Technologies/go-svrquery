@@ -21,7 +21,6 @@ func main() {
 		l.Println("No address provided")
 		flag.PrintDefaults()
 		os.Exit(1)
-
 	}
 
 	if *proto == "" {
@@ -32,18 +31,25 @@ func main() {
 
 	c, err := svrquery.NewClient(*proto, *address)
 	if err != nil {
-		log.Fatal(err)
+		l.Fatal(err)
 	}
 	defer c.Close()
 
+	if err = query(c); err != nil {
+		l.Println(err)
+	}
+}
+
+func query(c *svrquery.Client) error {
 	r, err := c.Query()
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
 
 	b, err := json.MarshalIndent(r, "", "\t")
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
-	fmt.Printf("%s \n", b)
+	fmt.Printf("%s\n", b)
+	return nil
 }
