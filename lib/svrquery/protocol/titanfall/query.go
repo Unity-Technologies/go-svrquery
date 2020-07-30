@@ -81,10 +81,8 @@ func (q *queryer) Query() (protocol.Responser, error) {
 			if err = r.Read(&i.MatchState); err != nil {
 				return nil, err
 			}
-		} else {
-			if err = r.Read(&i.MatchState.MatchStateV2); err != nil {
-				return nil, err
-			}
+		} else if err = r.Read(&i.MatchState.MatchStateV2); err != nil {
+			return nil, err
 		}
 
 		if err = q.teams(r, i); err != nil {
