@@ -10,28 +10,35 @@ import (
 )
 
 var (
-	// serverInfoPkt is a info request packet data.
-	serverInfoPkt = []byte{0xFF, 0xFF, 0xFF, 0xFF, ServerInfoRequest, ServerInfoVersion}
 
 	// minLength is the smallest packet we can expect.
 	minLength = 26
 )
 
 type queryer struct {
-	c protocol.Client
+	c       protocol.Client
+	version byte
 }
 
-func newQueryer(c protocol.Client) protocol.Queryer {
-	return &queryer{c: c}
+func newQueryer(version byte) func(c protocol.Client) protocol.Queryer {
+	return func(c protocol.Client) protocol.Queryer {
+		return &queryer{
+			c:       c,
+			version: version,
+		}
+	}
 }
 
 // Query implements protocol.Queryer.
 func (q *queryer) Query() (protocol.Responser, error) {
 	b := make([]byte, 1200)
-	copy(b, serverInfoPkt)
+	copy(b, q.serverInfoPkt())
 
 	if key := q.c.Key(); key != "" {
-		b[5] = ServerInfoVersionKeyed
+		if q.version < 5 {
+			// If keyed data asked for bump version sent to supported version level.
+			b[5] = ServerInfoVersionKeyed
+		}
 		copy(b[6:], key)
 	}
 
@@ -240,4 +247,9 @@ func (q *queryer) Charts(serverID int64) module.Charts {
 		c.MarkNotCreated()
 	}
 	return cs
+}
+
+// serverInfoPkt returns a byte array of info request packet data.
+func (q *queryer) serverInfoPkt() []byte {
+	return []byte{0xFF, 0xFF, 0xFF, 0xFF, ServerInfoRequest, q.version}
 }

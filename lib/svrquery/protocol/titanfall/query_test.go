@@ -18,7 +18,7 @@ var (
 		Header: Header{
 			Prefix:  -1,
 			Command: 78,
-			Version: 7,
+			Version: 3,
 		},
 		InstanceInfo: InstanceInfo{
 			Retail:         1,
@@ -40,12 +40,7 @@ var (
 			MaxClients:      60,
 			Map:             "mp_rr_desertlands_64k_x_64k",
 		},
-		PerformanceInfo: PerformanceInfo{
-			AverageFrameTime:       1,
-			MaxFrameTime:           2,
-			AverageUserCommandTime: 3,
-			MaxUserCommandTime:     4,
-		},
+		PerformanceInfo: PerformanceInfo{},
 		MatchState: MatchState{
 			MatchStateV2: MatchStateV2{
 				Phase:            2,
@@ -69,27 +64,52 @@ func TestQuery(t *testing.T) {
 	keyed.MaxUserCommandTime = 7.678111
 
 	v7 := base
+	v7.Version = 7
 	v7.PlatformPlayers = map[string]byte{
 		"ps3": 16,
 		"pc":  6,
+	}
+	v7.PerformanceInfo = PerformanceInfo{
+		AverageFrameTime:       1,
+		MaxFrameTime:           2,
+		AverageUserCommandTime: 3,
+		MaxUserCommandTime:     4,
 	}
 	v7.TeamsLeftWithPlayersNum = 6
 
 	cases := []struct {
 		name     string
+		version  byte
 		request  string
 		response string
 		key      string
 		expected Info
 	}{
 		{
+			name:     "v3",
+			version:  3,
+			request:  "request-v3",
+			response: "response-v3",
+			expected: base,
+		},
+		{
 			name:     "v7",
-			request:  "request",
-			response: "response",
+			version:  7,
+			request:  "request-v7",
+			response: "response-v7",
 			expected: v7,
 		},
 		{
 			name:     "keyed",
+			version:  5,
+			request:  "request-key",
+			response: "response-key",
+			key:      testKey,
+			expected: keyed,
+		},
+		{
+			name:     "keyed_upgrades_lower_version",
+			version:  3,
 			request:  "request-key",
 			response: "response-key",
 			key:      testKey,
@@ -107,7 +127,7 @@ func TestQuery(t *testing.T) {
 			m.On("Read", mock.AnythingOfType("[]uint8")).Return(resp, nil)
 			m.On("Key").Return(tc.key)
 
-			p := newQueryer(m)
+			p := newQueryer(tc.version)(m)
 			i, err := p.Query()
 			require.NoError(t, err)
 			require.IsType(t, &Info{}, i)
