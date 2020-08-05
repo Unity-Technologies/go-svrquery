@@ -8,7 +8,7 @@ const (
 	ServerInfoResponse = byte(78)
 
 	// ServerInfoVersion is the version of a info packets.
-	ServerInfoVersion = byte(3)
+	ServerInfoVersion = byte(7)
 
 	// ServerInfoVersionKeyed is the version of keys info packets.
 	ServerInfoVersionKeyed = byte(5)
