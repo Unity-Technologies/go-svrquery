@@ -60,11 +60,11 @@ type QueryResponse struct {
 }
 
 func (q *QueryResponse) MaxClients() int64 {
-	return int64(q.ServerInfo.CurrentPlayers)
+	return int64(q.ServerInfo.MaxPlayers)
 }
 
 func (q *QueryResponse) NumClients() int64 {
-	return int64(q.ServerInfo.MaxPlayers)
+	return int64(q.ServerInfo.CurrentPlayers)
 }
 
 type infoHeader struct {
