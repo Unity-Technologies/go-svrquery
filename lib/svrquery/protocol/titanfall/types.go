@@ -1,6 +1,7 @@
 package titanfall
 
 import (
+	"encoding/json"
 	"fmt"
 
 	"github.com/multiplay/go-svrquery/lib/svrquery/common"
@@ -12,6 +13,8 @@ type Info struct {
 	Header
 	// Version 1+
 	InstanceInfo
+	// Version 8+
+	InstanceInfoV8
 	BuildName  string
 	Datacenter string
 	GameMode   string
@@ -50,6 +53,43 @@ type InstanceInfo struct {
 	NetProtocol    uint16
 	RandomServerID uint64
 }
+
+// InstanceInfo represents instance information contained in a query response.
+type InstanceInfoV8 struct {
+	Retail         byte
+	InstanceType   byte
+	ClientCRC      uint32
+	NetProtocol    uint16
+	HealthFlags    HealthFlags
+	RandomServerID uint32
+}
+
+// HealthFlags allows us to read the health bits and output them
+// in an easy to consume json format.
+type HealthFlags uint32
+
+// MarshalJSON implements json.Marshaler
+func (a HealthFlags) MarshalJSON() ([]byte, error) {
+	obj := struct {
+		None bool
+		PacketLossIn bool
+		PacketLossOut bool
+		PacketChokedIn bool
+		PacketChokedOut bool
+		SlowServerFrames bool
+		Hitching bool
+	}{}
+	obj.None = a == 0
+	obj.PacketLossIn = (a >> 0) & 1 == 1
+	obj.PacketLossOut = (a >> 1) & 1 == 1
+	obj.PacketChokedIn = (a >> 2) & 1 == 1
+	obj.PacketChokedOut = (a >> 3) & 1 == 1
+	obj.SlowServerFrames = (a >> 4) & 1 == 1
+	obj.Hitching = (a >> 5) & 1 == 1
+
+	return json.Marshal(obj)
+}
+
 
 // BasicInfo represents basic information contained in a query response.
 type BasicInfo struct {

@@ -8,4 +8,5 @@ func init() {
 	// TODO(steve): add support for tf2.
 	protocol.MustRegister("tf2e", newQueryer(3))
 	protocol.MustRegister("tf2e-v7", newQueryer(7))
+	protocol.MustRegister("tf2e-v8", newQueryer(8))
 }

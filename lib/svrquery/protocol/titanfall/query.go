@@ -107,11 +107,19 @@ func (q *queryer) Query() (protocol.Responser, error) {
 
 // instanceInfo decodes the instance information from a response.
 func (q *queryer) instanceInfo(r *common.BinaryReader, i *Info) (err error) {
-	if err = r.Read(&i.InstanceInfo); err != nil {
+	if i.Version > 7 {
+		if err = r.Read(&i.InstanceInfoV8); err != nil {
+			return err
+		}
+	} else {
+		if err = r.Read(&i.InstanceInfo); err != nil {
+			return err
+		}
+	}
+	if i.BuildName, err = r.ReadString(); err != nil {
 		return err
-	} else if i.BuildName, err = r.ReadString(); err != nil {
-		return err
-	} else if i.Datacenter, err = r.ReadString(); err != nil {
+	}
+	if i.Datacenter, err = r.ReadString(); err != nil {
 		return err
 	}
 	i.GameMode, err = r.ReadString()
