@@ -12,7 +12,7 @@ import (
 
 func main() {
 	address := flag.String("addr", "", "Address e.g. 127.0.0.1:12345")
-	proto := flag.String("proto", "", "Protocol e.g. sqp, tf2e, tf2e-v7")
+	proto := flag.String("proto", "", "Protocol e.g. sqp, tf2e, tf2e-v7, tf2e-v8")
 	flag.Parse()
 
 	l := log.New(os.Stderr, "", 0)
