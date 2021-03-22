@@ -71,25 +71,24 @@ type HealthFlags uint32
 // MarshalJSON implements json.Marshaler
 func (a HealthFlags) MarshalJSON() ([]byte, error) {
 	obj := struct {
-		None bool
-		PacketLossIn bool
-		PacketLossOut bool
-		PacketChokedIn bool
-		PacketChokedOut bool
+		None             bool
+		PacketLossIn     bool
+		PacketLossOut    bool
+		PacketChokedIn   bool
+		PacketChokedOut  bool
 		SlowServerFrames bool
-		Hitching bool
+		Hitching         bool
 	}{}
 	obj.None = a == 0
-	obj.PacketLossIn = (a >> 0) & 1 == 1
-	obj.PacketLossOut = (a >> 1) & 1 == 1
-	obj.PacketChokedIn = (a >> 2) & 1 == 1
-	obj.PacketChokedOut = (a >> 3) & 1 == 1
-	obj.SlowServerFrames = (a >> 4) & 1 == 1
-	obj.Hitching = (a >> 5) & 1 == 1
+	obj.PacketLossIn = (a>>0)&1 == 1
+	obj.PacketLossOut = (a>>1)&1 == 1
+	obj.PacketChokedIn = (a>>2)&1 == 1
+	obj.PacketChokedOut = (a>>3)&1 == 1
+	obj.SlowServerFrames = (a>>4)&1 == 1
+	obj.Hitching = (a>>5)&1 == 1
 
 	return json.Marshal(obj)
 }
-
 
 // BasicInfo represents basic information contained in a query response.
 type BasicInfo struct {
