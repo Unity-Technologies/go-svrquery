@@ -79,15 +79,50 @@ func (a HealthFlags) MarshalJSON() ([]byte, error) {
 		SlowServerFrames bool
 		Hitching         bool
 	}{}
-	obj.None = a == 0
-	obj.PacketLossIn = (a>>0)&1 == 1
-	obj.PacketLossOut = (a>>1)&1 == 1
-	obj.PacketChokedIn = (a>>2)&1 == 1
-	obj.PacketChokedOut = (a>>3)&1 == 1
-	obj.SlowServerFrames = (a>>4)&1 == 1
-	obj.Hitching = (a>>5)&1 == 1
+	obj.None = a.None()
+	obj.PacketLossIn = a.PacketLossIn()
+	obj.PacketLossOut = a.PacketLossOut()
+	obj.PacketChokedIn = a.PacketChokedIn()
+	obj.PacketChokedOut = a.PacketChokedOut()
+	obj.SlowServerFrames = a.SlowServerFrames()
+	obj.Hitching = a.Hitching()
 
 	return json.Marshal(obj)
+}
+
+// None No health issues
+func (a HealthFlags) None() bool {
+	return a == 0
+}
+
+// PacketLossIn health flag
+func (a HealthFlags) PacketLossIn() bool {
+	return (a>>0)&1 == 1
+}
+
+// PacketLossOut health flag
+func (a HealthFlags) PacketLossOut() bool {
+	return (a>>1)&1 == 1
+}
+
+// PacketChokedIn health flag
+func (a HealthFlags) PacketChokedIn() bool {
+	return (a>>2)&1 == 1
+}
+
+// PacketChokedOut health flag
+func (a HealthFlags) PacketChokedOut() bool {
+	return (a>>3)&1 == 1
+}
+
+// SlowServerFrames health flag
+func (a HealthFlags) SlowServerFrames() bool {
+	return (a>>4)&1 == 1
+}
+
+// Hitching health flag
+func (a HealthFlags) Hitching() bool {
+	return (a>>5)&1 == 1
 }
 
 // BasicInfo represents basic information contained in a query response.
