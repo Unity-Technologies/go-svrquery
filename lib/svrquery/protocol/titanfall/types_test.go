@@ -19,12 +19,10 @@ func TestHealthFlags(t *testing.T) {
 		expHitching         bool
 	}{
 		{
-
 			input:   0,
 			expNone: true,
 		},
 		{
-
 			input:           1 << 0,
 			expPacketLossIn: true,
 		},
