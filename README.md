@@ -45,7 +45,7 @@ func main() {
 
 CLI
 -------------
-A cli is available in http://github.com/multiplay/go-svrquery/cmd/cli
+A cli is available in https://github.com/multiplay/go-svrquery/tree/master/cmd/cli
 
 This enables you make queries to servers using the specified protocol, and returns the response in pretty json.
 
