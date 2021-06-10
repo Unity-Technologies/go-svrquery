@@ -17,6 +17,7 @@ func TestHealthFlags(t *testing.T) {
 		expPacketChokedOut  bool
 		expSlowServerFrames bool
 		expHitching         bool
+		expDOS bool
 	}{
 		{
 			input:   0,
@@ -45,6 +46,10 @@ func TestHealthFlags(t *testing.T) {
 		{
 			input:       1 << 5,
 			expHitching: true,
+		},
+		{
+			input:       1 << 6,
+			expDOS: true,
 		},
 	}
 

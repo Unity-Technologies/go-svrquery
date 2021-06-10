@@ -54,7 +54,7 @@ type InstanceInfo struct {
 	RandomServerID uint64
 }
 
-// InstanceInfo represents instance information contained in a query response.
+// InstanceInfoV8 represents instance information contained in a query response.
 type InstanceInfoV8 struct {
 	Retail         byte
 	InstanceType   byte
@@ -78,6 +78,7 @@ func (a HealthFlags) MarshalJSON() ([]byte, error) {
 		PacketChokedOut  bool
 		SlowServerFrames bool
 		Hitching         bool
+		DOS              bool
 	}{}
 	obj.None = a.None()
 	obj.PacketLossIn = a.PacketLossIn()
@@ -86,6 +87,7 @@ func (a HealthFlags) MarshalJSON() ([]byte, error) {
 	obj.PacketChokedOut = a.PacketChokedOut()
 	obj.SlowServerFrames = a.SlowServerFrames()
 	obj.Hitching = a.Hitching()
+	obj.DOS = a.DOS()
 
 	return json.Marshal(obj)
 }
@@ -123,6 +125,11 @@ func (a HealthFlags) SlowServerFrames() bool {
 // Hitching health flag
 func (a HealthFlags) Hitching() bool {
 	return (a>>5)&1 == 1
+}
+
+// DOS health flag
+func (a HealthFlags) DOS() bool {
+	return (a>>6)&1 == 1
 }
 
 // BasicInfo represents basic information contained in a query response.
