@@ -40,4 +40,5 @@ const (
 	ServerRules
 	PlayerInfo
 	TeamInfo
+	PerformanceInfo
 )
