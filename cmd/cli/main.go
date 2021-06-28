@@ -11,10 +11,11 @@ import (
 
 	"github.com/multiplay/go-svrquery/lib/svrquery"
 	"github.com/multiplay/go-svrquery/lib/svrsample"
+	"github.com/multiplay/go-svrquery/lib/svrsample/common"
 )
 
 func main() {
-	clientAddr := flag.String("addr", "", "Address e.g. 127.0.0.1:12345")
+	clientAddr := flag.String("addr", "", "Address to connect to e.g. 127.0.0.1:12345")
 	proto := flag.String("proto", "", "Protocol e.g. sqp, tf2e, tf2e-v7, tf2e-v8")
 	serverAddr := flag.String("server", "", "Address to start server e.g. 127.0.0.1:12121, :23232")
 	flag.Parse()
@@ -25,19 +26,19 @@ func main() {
 		bail(l, "Cannot run both a server and a client. Specify either -addr OR -server flags")
 	}
 
-	if *serverAddr != "" {
+	switch {
+	case *serverAddr != "":
 		if *proto == "" {
-			bail(l, "No protocol provided")
+			bail(l, "No protocol provided in client mode")
 		}
 		serverMode(l, *proto, *serverAddr)
-	} else {
+	case *clientAddr != "":
 		if *proto == "" {
 			bail(l, "Protocol required in server mode")
 		}
-		if *clientAddr == "" {
-			bail(l, "No address provided")
-		}
 		queryMode(l, *proto, *clientAddr)
+	default:
+		bail(l, "Please supply some options")
 	}
 }
 
@@ -75,7 +76,7 @@ func serverMode(l *log.Logger, proto, serverAddr string) {
 
 func server(l *log.Logger, proto, address string) error {
 	l.Printf("Starting sample server using protocol %s on %s", proto, address)
-	responder, err := svrsample.GetResponder(proto, svrsample.QueryState{
+	responder, err := svrsample.GetResponder(proto, common.QueryState{
 		CurrentPlayers: 1,
 		MaxPlayers:     2,
 		ServerName:     "Name",

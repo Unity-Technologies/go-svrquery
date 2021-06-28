@@ -9,15 +9,13 @@ import (
 	"sync"
 
 	"github.com/multiplay/go-svrquery/lib/svrsample/common"
-
-	"github.com/multiplay/go-svrquery/lib/svrsample"
 )
 
 // QueryResponder responds to queries
 type QueryResponder struct {
 	challenges sync.Map
 	enc        *common.Encoder
-	state      svrsample.QueryState
+	state      common.QueryState
 }
 
 // challengeWireFormat describes the format of an SQP challenge response
@@ -35,12 +33,12 @@ type queryWireFormat struct {
 	LastPacketNum    byte
 	PayloadLength    uint16
 	ServerInfoLength uint32
-	ServerInfo       serverInfo
+	ServerInfo       ServerInfo
 }
 
 // NewQueryResponder returns creates a new responder capable of responding
 // to SQP-formatted queries.
-func NewQueryResponder(state svrsample.QueryState) (svrsample.QueryResponder, error) {
+func NewQueryResponder(state common.QueryState) (*QueryResponder, error) {
 	q := &QueryResponder{
 		enc:   &common.Encoder{},
 		state: state,

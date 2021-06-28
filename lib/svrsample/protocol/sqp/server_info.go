@@ -1,8 +1,11 @@
 package sqp
 
-import "github.com/multiplay/go-svrquery/lib/svrsample"
+import (
+	"github.com/multiplay/go-svrquery/lib/svrsample/common"
+)
 
-type serverInfo struct {
+// ServerInfo holds the ServerInfo chunk data.
+type ServerInfo struct {
 	CurrentPlayers uint16
 	MaxPlayers     uint16
 	ServerName     string
@@ -12,9 +15,9 @@ type serverInfo struct {
 	Port           uint16
 }
 
-// QueryStateToServerInfo converts proto.QueryState to serverInfo.
-func QueryStateToServerInfo(qs svrsample.QueryState) serverInfo {
-	return serverInfo{
+// QueryStateToServerInfo converts proto.QueryState to ServerInfo.
+func QueryStateToServerInfo(qs common.QueryState) ServerInfo {
+	return ServerInfo{
 		CurrentPlayers: uint16(qs.CurrentPlayers),
 		MaxPlayers:     uint16(qs.MaxPlayers),
 		ServerName:     qs.ServerName,
@@ -25,7 +28,7 @@ func QueryStateToServerInfo(qs svrsample.QueryState) serverInfo {
 }
 
 // Size returns the number of bytes sqpServerInfo will use on the wire.
-func (si serverInfo) Size() uint32 {
+func (si ServerInfo) Size() uint32 {
 	return uint32(
 		2 + // CurrentPlayers
 			2 + // MaxPlayers

@@ -4,12 +4,12 @@ import (
 	"bytes"
 	"testing"
 
-	"github.com/multiplay/go-svrquery/lib/svrsample"
+	"github.com/multiplay/go-svrquery/lib/svrsample/common"
 	"github.com/stretchr/testify/require"
 )
 
 func Test_Respond(t *testing.T) {
-	q, err := NewQueryResponder(&svrsample.QueryState{
+	q, err := NewQueryResponder(common.QueryState{
 		CurrentPlayers: 1,
 		MaxPlayers:     2,
 	})
