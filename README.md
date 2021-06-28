@@ -45,9 +45,39 @@ func main() {
 
 CLI
 -------------
-A cli is available in https://github.com/multiplay/go-svrquery/tree/master/cmd/cli
+A cli is available in github releases and also at https://github.com/multiplay/go-svrquery/tree/master/cmd/cli
 
 This enables you make queries to servers using the specified protocol, and returns the response in pretty json.
+
+### Client
+
+```
+./go-svrquery -addr localhost:12121 -proto sqp
+{
+        "version": 1,
+        "address": "localhost:12121",
+        "server_info": {
+                "current_players": 1,
+                "max_players": 2,
+                "server_name": "Name",
+                "game_type": "Game Type",
+                "build_id": "",
+                "map": "Map",
+                "port": 1000
+        }
+}
+```
+
+### Example Server
+
+This tool also provides the ability to start a very basic sample server using a given protocol.
+
+Currently, only `sqp` is supported
+
+```
+./go-svrquery -server :12121 -proto sqp
+Starting sample server using protocol sqp on :12121
+```
 
 Documentation
 -------------
