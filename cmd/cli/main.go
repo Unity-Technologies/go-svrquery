@@ -16,7 +16,7 @@ import (
 
 func main() {
 	clientAddr := flag.String("addr", "", "Address to connect to e.g. 127.0.0.1:12345")
-	proto := flag.String("proto", "", "Protocol e.g. sqp, tf2e, tf2e-v7, tf2e-v8")
+	proto := flag.String("proto", "", "Protocol e.g. sqp, tf2, tf2e, tf2e-v7, tf2e-v8")
 	serverAddr := flag.String("server", "", "Address to start server e.g. 127.0.0.1:12121, :23232")
 	flag.Parse()
 
