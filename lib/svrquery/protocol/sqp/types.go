@@ -59,11 +59,21 @@ type QueryResponse struct {
 	TeamInfo    *TeamInfoChunk    `json:"team_info,omitempty"`
 }
 
+// MaxClients returns the maximum number of clients.
 func (q *QueryResponse) MaxClients() int64 {
+	if q.ServerInfo == nil {
+		// No server info chunk, use 0
+		return 0
+	}
 	return int64(q.ServerInfo.MaxPlayers)
 }
 
+// NumClients returns the number of clients.
 func (q *QueryResponse) NumClients() int64 {
+	if q.ServerInfo == nil {
+		// No server info chunk, use 0
+		return 0
+	}
 	return int64(q.ServerInfo.CurrentPlayers)
 }
 
