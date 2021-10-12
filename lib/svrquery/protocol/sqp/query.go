@@ -4,8 +4,10 @@ import (
 	"bufio"
 	"bytes"
 	"encoding/binary"
+	"fmt"
 	"io"
 	"io/ioutil"
+	"math"
 
 	"github.com/multiplay/go-svrquery/lib/svrquery/protocol"
 )
@@ -16,18 +18,24 @@ type queryer struct {
 	reader          *packetReader
 	challengeID     uint32
 	requestedChunks byte
+	version         uint16
 }
 
 func newCreator(c protocol.Client) protocol.Queryer {
-	return newQueryer(ServerInfo, DefaultMaxPacketSize, c)
+	return newQueryer(ServerInfo, DefaultMaxPacketSize, 1, c)
 }
 
-func newQueryer(requestedChunks byte, maxPktSize int, c protocol.Client) *queryer {
+func newCreatorV2(c protocol.Client) protocol.Queryer {
+	return newQueryer(ServerInfo|PerformanceInfo, DefaultMaxPacketSize, 2, c)
+}
+
+func newQueryer(requestedChunks byte, maxPktSize int, version uint16, c protocol.Client) *queryer {
 	return &queryer{
 		c:               c,
 		maxPktSize:      maxPktSize,
 		requestedChunks: requestedChunks,
 		reader:          newPacketReader(bufio.NewReaderSize(c, maxPktSize)),
+		version:         version,
 	}
 }
 
@@ -36,6 +44,8 @@ func (q *queryer) Query() (protocol.Responser, error) {
 	if err := q.sendQuery(q.requestedChunks); err != nil {
 		return nil, err
 	}
+
+	fmt.Println("query 1")
 
 	return q.readQuery(q.requestedChunks)
 }
@@ -55,25 +65,31 @@ func (q *queryer) sendQuery(requestedChunks byte) error {
 		return err
 	}
 
-	if err := binary.Write(pkt, binary.BigEndian, Version); err != nil {
+	if err := binary.Write(pkt, binary.BigEndian, q.version); err != nil {
 		return err
 	}
 
-	if err := pkt.WriteByte(requestedChunks); err != nil {
+	fmt.Printf("Requested Chunks: %b %d\n", requestedChunks, requestedChunks)
+	//if err := pkt.WriteByte(requestedChunks); err != nil {
+	//	return err
+	//}
+
+	if err := pkt.WriteByte(ServerInfo); err != nil {
 		return err
 	}
-
 	_, err := q.c.Write(pkt.Bytes())
 	return err
 }
 
 func (q *queryer) readQueryHeader() (uint16, byte, byte, uint16, error) {
+	fmt.Println("readQuery header 1")
 	pktType, err := q.reader.ReadByte()
 	if err != nil {
 		return 0, 0, 0, 0, err
 	} else if pktType != QueryResponseType {
 		return 0, 0, 0, 0, NewErrMalformedPacketf("was expecting 0x%02x for response type, got 0x%02x", QueryResponseType, pktType)
 	}
+	fmt.Println("readQuery header 2")
 
 	if err = q.validateChallenge(); err != nil {
 		return 0, 0, 0, 0, err
@@ -113,6 +129,8 @@ func (q *queryer) readQuery(requestedChunks byte) (*QueryResponse, error) {
 		return nil, err
 	}
 
+	fmt.Println("readQuery 1")
+
 	if lastPkt == 0 && curPkt == 0 {
 		// If the header says the body is empty, we should just return now
 		if pktLen == 0 {
@@ -127,6 +145,9 @@ func (q *queryer) readQuery(requestedChunks byte) (*QueryResponse, error) {
 
 func (q *queryer) readQuerySinglePacket(r *packetReader, version uint16, requestedChunks byte, pktLen uint32) (*QueryResponse, error) {
 	qr := &QueryResponse{Version: version, Address: q.c.Address()}
+
+	fmt.Println("SP 1")
+	fmt.Println("SP 1a: ", requestedChunks&ServerInfo, requestedChunks&PerformanceInfo)
 
 	l := pktLen
 	if requestedChunks&ServerInfo > 0 {
@@ -157,6 +178,13 @@ func (q *queryer) readQuerySinglePacket(r *packetReader, version uint16, request
 		l -= qr.TeamInfo.ChunkLength + uint32(Uint32.Size())
 	}
 
+	if requestedChunks&PerformanceInfo > 0 && version == 2 {
+		if err := q.readQueryPerformanceInfo(qr, r); err != nil {
+			return nil, err
+		}
+		l -= qr.PerformanceInfo.ChunkLength + uint32(Uint32.Size())
+	}
+
 	if l > 0 {
 		// If we have extra bytes remaining, we assume they are new fields from a future
 		// query version and discard them.
@@ -170,6 +198,8 @@ func (q *queryer) readQuerySinglePacket(r *packetReader, version uint16, request
 
 func (q *queryer) readQueryServerInfo(qr *QueryResponse, r *packetReader) (err error) {
 	qr.ServerInfo = &ServerInfoChunk{}
+
+	fmt.Println("SI 1")
 
 	if qr.ServerInfo.ChunkLength, err = r.ReadUint32(); err != nil {
 		return err
@@ -415,6 +445,72 @@ func (q *queryer) readQueryTeamInfo(qr *QueryResponse, r *packetReader) (err err
 		}
 	case expectedTeamCount != 0:
 		return NewErrMalformedPacketf("expected %v Team records, but got %v", len(qr.TeamInfo.Teams)+int(expectedTeamCount), len(qr.TeamInfo.Teams))
+	}
+
+	return nil
+}
+
+//	FlagsNum    byte
+//	Flags       uint32
+//	GaugesNum   byte
+//	Gauges      []float32
+
+func (q *queryer) readQueryPerformanceInfo(qr *QueryResponse, r *packetReader) (err error) {
+	qr.PerformanceInfo = &PerformanceInfoChunk{
+		Gauges: []float32{},
+	}
+
+	fmt.Println("p1")
+
+	if qr.PerformanceInfo.ChunkLength, err = r.ReadUint32(); err != nil {
+		return err
+	}
+	l := int64(qr.PerformanceInfo.ChunkLength)
+
+	fmt.Println("p2")
+	if qr.PerformanceInfo.NumFlags, err = r.ReadByte(); err != nil {
+		return err
+	}
+	l -= int64(Byte.Size())
+
+	//fmt.Printf("num: %d, mask: %b\n", flagsNum, mask)
+
+	if qr.PerformanceInfo.Flags, err = r.ReadUint32(); err != nil {
+		return err
+	}
+	l -= int64(Uint32.Size())
+
+	fmt.Println("p2")
+	var gaugesNum byte
+	if gaugesNum, err = r.ReadByte(); err != nil {
+		return err
+	}
+	l -= int64(Byte.Size())
+
+	fmt.Println("p3 ", gaugesNum)
+
+	for i := byte(0); i < gaugesNum; i++ {
+		fmt.Println("p4")
+		u, err := r.ReadUint32()
+		if err != nil {
+			return err
+		}
+		l -= int64(Uint32.Size())
+		qr.PerformanceInfo.Gauges = append(qr.PerformanceInfo.Gauges, math.Float32frombits(u))
+	}
+
+	fmt.Println("p5")
+
+	switch {
+	case l < 0:
+		// If we have read more bytes than expected, the packet is malformed
+		return NewErrMalformedPacketf("expected chunk length of %v, but have %v bytes remaining", qr.PerformanceInfo.ChunkLength, l)
+	case l > 0:
+		// If we have extra bytes remaining, we assume they are new fields from a future
+		// query version and discard them
+		if _, err := io.CopyN(ioutil.Discard, r, l); err != nil {
+			return err
+		}
 	}
 
 	return nil
