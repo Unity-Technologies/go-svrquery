@@ -1,18 +1,27 @@
 package titanfall
 
 import (
+	"crypto/aes"
+	"crypto/cipher"
+	"crypto/rand"
+	"encoding/base64"
 	"encoding/binary"
+	"encoding/hex"
 	"fmt"
-
 	"github.com/multiplay/go-svrquery/lib/svrquery/common"
 	"github.com/multiplay/go-svrquery/lib/svrquery/protocol"
 	"github.com/netdata/go-orchestrator/module"
+	"io"
+	"os"
 )
 
 var (
 
 	// minLength is the smallest packet we can expect.
 	minLength = 26
+	nonceSize = 12
+	tagSize = 16
+	packetSize = 1200
 )
 
 type queryer struct {
@@ -29,6 +38,69 @@ func newQueryer(version byte) func(c protocol.Client) protocol.Queryer {
 	}
 }
 
+func encrypt(b []byte) ([]byte, error) {
+	key := os.Getenv("AES_KEY")
+	if key == "" {
+		return nil, fmt.Errorf("no aes key found. (Is AES_KEY env var set?)")
+	}
+
+	keyBytes, err := base64.StdEncoding.DecodeString(key)
+	if err != nil {
+		return nil, err
+	}
+
+	c, err := aes.NewCipher([]byte(hex.EncodeToString(keyBytes)))
+	if err != nil {
+		return nil, err
+	}
+
+    gcm, err := cipher.NewGCM(c)
+    if err != nil {
+        fmt.Println(err)
+    }
+
+    nonce := make([]byte, gcm.NonceSize())
+    if _, err = io.ReadFull(rand.Reader, nonce); err != nil {
+        fmt.Println(err)
+    }
+
+	return gcm.Seal(nonce, nonce, b, nil), nil
+}
+
+func decrypt(b []byte) ([]byte, error) {
+	key := os.Getenv("AES_KEY")
+	if key == "" {
+		return nil, fmt.Errorf("no aes key found. (Is AES_KEY env var set?)")
+	}
+
+	keyBytes, err := base64.StdEncoding.DecodeString(key)
+	if err != nil {
+		return nil, err
+	}
+
+	c, err := aes.NewCipher([]byte(hex.EncodeToString(keyBytes)))
+	if err != nil {
+		return nil, err
+	}
+
+    gcm, err := cipher.NewGCM(c)
+    if err != nil {
+        fmt.Println(err)
+    }
+
+    if len(b) < gcm.NonceSize() {
+        return nil, fmt.Errorf("incoming bytes smaller than %d", gcm.NonceSize())
+    }
+
+    nonce, b := b[:gcm.NonceSize()], b[gcm.NonceSize():]
+    plaintext, err := gcm.Open(nil, nonce, b, nil)
+    if err != nil {
+        return nil, err
+    }
+
+	return plaintext, nil
+}
+
 // Query implements protocol.Queryer.
 func (q *queryer) Query() (protocol.Responser, error) {
 	b := make([]byte, 1200)
@@ -42,15 +114,25 @@ func (q *queryer) Query() (protocol.Responser, error) {
 		copy(b[6:], key)
 	}
 
-	if _, err := q.c.Write(b); err != nil {
+	b, err := encrypt(b)
+	if err != nil {
 		return nil, err
+	}
+
+	if _, err := q.c.Write(b); err != nil {
+		return nil, fmt.Errorf("query write: %w", err)
 	}
 
 	n, err := q.c.Read(b)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("query read: %w", err)
 	} else if n < minLength {
 		return nil, fmt.Errorf("packet too short (len: %d)", n)
+	}
+
+	b, err = decrypt(b)
+	if err != nil {
+		return nil, err
 	}
 
 	r := common.NewBinaryReader(b[:n], binary.LittleEndian)
