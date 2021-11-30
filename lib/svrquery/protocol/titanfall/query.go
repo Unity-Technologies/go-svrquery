@@ -5,7 +5,7 @@ import (
 	"crypto/cipher"
 	"crypto/rand"
 	"encoding/base64"
-	"encoding/hex"
+	"encoding/binary"
 	"fmt"
 	"io"
 	"os"
@@ -22,6 +22,7 @@ var (
 	nonceSize  = 12
 	tagSize    = 16
 	packetSize = 1200
+	gcmAdditionalData = []byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16}
 )
 
 type queryer struct {
@@ -49,11 +50,10 @@ func encrypt(b []byte) ([]byte, error) {
 		return nil, err
 	}
 
-	hexKey := []byte(hex.EncodeToString(keyBytes))
-	fmt.Println("key length", len(hexKey))
-	fmt.Println("key", hexKey)
+	//fmt.Println("key length", len(keyBytes))
+	//fmt.Println("key", keyBytes)
 
-	c, err := aes.NewCipher(hexKey)
+	c, err := aes.NewCipher(keyBytes)
 	if err != nil {
 		return nil, err
 	}
@@ -63,24 +63,24 @@ func encrypt(b []byte) ([]byte, error) {
 		return nil, err
 	}
 
-	fmt.Println("Nonce size", gcm.NonceSize())
+	//fmt.Println("Nonce size", gcm.NonceSize())
 	nonce := make([]byte, gcm.NonceSize())
 	if _, err = io.ReadFull(rand.Reader, nonce); err != nil {
 		return nil, err
 	}
 
-	fmt.Println("Nonce: ", nonce)
+	//fmt.Println("Nonce: ", nonce)
 
 	// This will output in the form CipherTest | Tag and will need rearranging
-	ciperTextAndTag := gcm.Seal(nil, nonce, b, nil)
-	fmt.Println(ciperTextAndTag)
+	ciperTextAndTag := gcm.Seal(nil, nonce, b, gcmAdditionalData)
+	//fmt.Println(ciperTextAndTag)
 
 	// Rearange output to nonce | tag | ciphertext
 	newCipherText := nonce
 	newCipherText = append(newCipherText, ciperTextAndTag[len(ciperTextAndTag)-tagSize:]...)
 	newCipherText = append(newCipherText, ciperTextAndTag[:len(ciperTextAndTag)-tagSize]...)
 
-	fmt.Println(newCipherText)
+	//fmt.Println(newCipherText)
 
 	return newCipherText, nil
 }
@@ -96,7 +96,7 @@ func decrypt(b []byte) ([]byte, error) {
 		return nil, err
 	}
 
-	c, err := aes.NewCipher([]byte(hex.EncodeToString(keyBytes)))
+	c, err := aes.NewCipher(keyBytes)
 	if err != nil {
 		return nil, err
 	}
@@ -110,8 +110,9 @@ func decrypt(b []byte) ([]byte, error) {
 		return nil, fmt.Errorf("incoming bytes smaller than %d", gcm.NonceSize())
 	}
 
-	nonce, b := b[:gcm.NonceSize()], b[gcm.NonceSize():]
-	plaintext, err := gcm.Open(nil, nonce, b, nil)
+	nonce, tag, b := b[:gcm.NonceSize()], b[gcm.NonceSize():gcm.NonceSize()+tagSize], b[gcm.NonceSize()+tagSize:]
+	b = append(b, tag...)
+	plaintext, err := gcm.Open(nil, nonce, b, gcmAdditionalData)
 	if err != nil {
 		return nil, err
 	}
@@ -137,81 +138,74 @@ func (q *queryer) Query() (protocol.Responser, error) {
 		return nil, err
 	}
 
-	fmt.Printf("Length: %d\n", len(b))
+	//fmt.Printf("Length: %d\n", len(b))
 
 	if _, err := q.c.Write(b); err != nil {
 		return nil, fmt.Errorf("query write: %w", err)
 	}
 
-	testRead := make([]byte, 16)
-	n, err := q.c.Read(testRead)
-	// Output everything
-	fmt.Println(n, err, testRead)
-
-	return nil, fmt.Errorf("debug")
-	//
-	//n, err := q.c.Read(b)
-	//if err != nil {
-	//	return nil, fmt.Errorf("query read: %w", err)
-	//} else if n < minLength {
-	//	return nil, fmt.Errorf("packet too short (len: %d)", n)
-	//}
-	//
-	//b, err = decrypt(b)
-	//if err != nil {
-	//	return nil, err
-	//}
-	//
-	//r := common.NewBinaryReader(b[:n], binary.LittleEndian)
-	//i := &Info{}
-	//
-	//// Header.
-	//if err = r.Read(&i.Header); err != nil {
-	//	return nil, err
-	//} else if i.Command != ServerInfoResponse {
-	//	return nil, fmt.Errorf("unexpected cmd %x", i.Command)
-	//}
-	//
-	//if i.Version > 1 {
-	//	// InstanceInfo.
-	//	if err = q.instanceInfo(r, i); err != nil {
-	//		return nil, err
-	//	}
-	//}
-	//
-	//// BasicInfo.
-	//if err = q.basicInfo(r, i); err != nil {
-	//	return nil, err
-	//}
-	//
-	//if i.Version > 4 {
-	//	// PerformanceInfo.
-	//	if err = r.Read(&i.PerformanceInfo); err != nil {
-	//		return nil, err
-	//	}
-	//}
-	//
-	//if i.Version > 2 {
-	//	if i.Version > 5 {
-	//		// MatchState and Teams.
-	//		if err = r.Read(&i.MatchState); err != nil {
-	//			return nil, err
-	//		}
-	//	} else if err = r.Read(&i.MatchState.MatchStateV2); err != nil {
-	//		return nil, err
-	//	}
-	//
-	//	if err = q.teams(r, i); err != nil {
-	//		return nil, err
-	//	}
-	//}
-	//
-	//// Clients
-	//if err = q.clients(r, i); err != nil {
-	//	return nil, err
-	//}
-	//
-	//return i, nil
+	n, err := q.c.Read(b)
+	if err != nil {
+		return nil, fmt.Errorf("query read: %w", err)
+	} else if n < minLength {
+		return nil, fmt.Errorf("packet too short (len: %d)", n)
+	}
+	
+	b, err = decrypt(b[:n])
+	if err != nil {
+		return nil, err
+	}
+	
+	r := common.NewBinaryReader(b, binary.LittleEndian)
+	i := &Info{}
+	
+	// Header.
+	if err = r.Read(&i.Header); err != nil {
+		return nil, err
+	} else if i.Command != ServerInfoResponse {
+		return nil, fmt.Errorf("unexpected cmd %x", i.Command)
+	}
+	
+	if i.Version > 1 {
+		// InstanceInfo.
+		if err = q.instanceInfo(r, i); err != nil {
+			return nil, err
+		}
+	}
+	
+	// BasicInfo.
+	if err = q.basicInfo(r, i); err != nil {
+		return nil, err
+	}
+	
+	if i.Version > 4 {
+		// PerformanceInfo.
+		if err = r.Read(&i.PerformanceInfo); err != nil {
+			return nil, err
+		}
+	}
+	
+	if i.Version > 2 {
+		if i.Version > 5 {
+			// MatchState and Teams.
+			if err = r.Read(&i.MatchState); err != nil {
+				return nil, err
+			}
+		} else if err = r.Read(&i.MatchState.MatchStateV2); err != nil {
+			return nil, err
+		}
+	
+		if err = q.teams(r, i); err != nil {
+			return nil, err
+		}
+	}
+	
+	// Clients
+	if err = q.clients(r, i); err != nil {
+		return nil, err
+	}
+	
+	return i, nil
 }
 
 // instanceInfo decodes the instance information from a response.
