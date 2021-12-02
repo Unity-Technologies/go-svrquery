@@ -67,6 +67,11 @@ func (q *QueryResponse) NumClients() int64 {
 	return int64(q.ServerInfo.CurrentPlayers)
 }
 
+// Map implements protocol.Mapper.
+func (q *QueryResponse) Map() string {
+	return q.ServerInfo.Map
+}
+
 type infoHeader struct {
 	Name string
 	Type DataType

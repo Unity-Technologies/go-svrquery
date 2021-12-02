@@ -17,6 +17,11 @@ type Responser interface {
 	MaxClients() int64
 }
 
+// Mapper represents something which can return the current map.
+type Mapper interface {
+	Map() string
+}
+
 // Client is an interface which is implemented by types which can act a query transport.
 type Client interface {
 	io.ReadWriteCloser

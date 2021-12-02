@@ -8,7 +8,6 @@ import (
 	"encoding/binary"
 	"fmt"
 	"io"
-	"os"
 
 	"github.com/multiplay/go-svrquery/lib/svrquery/common"
 	"github.com/multiplay/go-svrquery/lib/svrquery/protocol"
@@ -18,10 +17,9 @@ import (
 var (
 
 	// minLength is the smallest packet we can expect.
-	minLength  = 26
-	nonceSize  = 12
-	tagSize    = 16
-	packetSize = 1200
+	minLength         = 26
+	tagSize           = 16
+	packetSize        = 1200
 	gcmAdditionalData = []byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16}
 )
 
@@ -39,71 +37,54 @@ func newQueryer(version byte) func(c protocol.Client) protocol.Queryer {
 	}
 }
 
-func encrypt(b []byte) ([]byte, error) {
-	key := os.Getenv("AES_KEY")
-	if key == "" {
-		return nil, fmt.Errorf("no aes key found. (Is AES_KEY env var set?)")
-	}
-
-	keyBytes, err := base64.StdEncoding.DecodeString(key)
+// encrypt encrypts the byte buffer given to it.
+func (q *queryer) encrypt(b []byte) ([]byte, error) {
+	keyBytes, err := base64.StdEncoding.DecodeString(q.c.Key())
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("decode key: %w", err)
 	}
-
-	//fmt.Println("key length", len(keyBytes))
-	//fmt.Println("key", keyBytes)
 
 	c, err := aes.NewCipher(keyBytes)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("new aes cipher: %w", err)
 	}
 
 	gcm, err := cipher.NewGCM(c)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("new gcm: %w", err)
 	}
 
-	//fmt.Println("Nonce size", gcm.NonceSize())
 	nonce := make([]byte, gcm.NonceSize())
 	if _, err = io.ReadFull(rand.Reader, nonce); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("read random nonce: %w", err)
 	}
 
-	//fmt.Println("Nonce: ", nonce)
+	// This will output in the form CipherTest | Tag and will need rearranging.
+	cipherTextAndTag := gcm.Seal(nil, nonce, b, gcmAdditionalData)
 
-	// This will output in the form CipherTest | Tag and will need rearranging
-	ciperTextAndTag := gcm.Seal(nil, nonce, b, gcmAdditionalData)
-	//fmt.Println(ciperTextAndTag)
-
-	// Rearange output to nonce | tag | ciphertext
+	// Rearrange output to nonce | tag | ciphertext.
 	newCipherText := nonce
-	newCipherText = append(newCipherText, ciperTextAndTag[len(ciperTextAndTag)-tagSize:]...)
-	newCipherText = append(newCipherText, ciperTextAndTag[:len(ciperTextAndTag)-tagSize]...)
-
-	//fmt.Println(newCipherText)
+	newCipherText = append(newCipherText, cipherTextAndTag[len(cipherTextAndTag)-tagSize:]...)
+	newCipherText = append(newCipherText, cipherTextAndTag[:len(cipherTextAndTag)-tagSize]...)
 
 	return newCipherText, nil
 }
 
-func decrypt(b []byte) ([]byte, error) {
-	key := os.Getenv("AES_KEY")
-	if key == "" {
-		return nil, fmt.Errorf("no aes key found. (Is AES_KEY env var set?)")
-	}
-
-	keyBytes, err := base64.StdEncoding.DecodeString(key)
+// decrypt decrypts the byte buffer given to it.
+func (q *queryer) decrypt(b []byte) ([]byte, error) {
+	keyBytes, err := base64.StdEncoding.DecodeString(q.c.Key())
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("decode key: %w", err)
 	}
 
 	c, err := aes.NewCipher(keyBytes)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("new aes cipher: %w", err)
 	}
 
 	gcm, err := cipher.NewGCM(c)
 	if err != nil {
-		fmt.Println(err)
+		return nil, fmt.Errorf("new gcm: %w", err)
 	}
 
 	if len(b) < gcm.NonceSize() {
@@ -121,10 +102,11 @@ func decrypt(b []byte) ([]byte, error) {
 }
 
 // Query implements protocol.Queryer.
-func (q *queryer) Query() (protocol.Responser, error) {
-	b := make([]byte, 1200)
+func (q *queryer) Query() (resp protocol.Responser, err error) {
+	b := make([]byte, packetSize)
 	copy(b, q.serverInfoPkt())
 
+	// For older query versions we use a keyed magic section to auth. For newer versions we use encryption
 	if key := q.c.Key(); key != "" {
 		if q.version < 5 {
 			// If keyed data asked for bump version sent to supported version level.
@@ -133,12 +115,12 @@ func (q *queryer) Query() (protocol.Responser, error) {
 		copy(b[6:], key)
 	}
 
-	b, err := encrypt(b)
-	if err != nil {
-		return nil, err
+	if q.version >= 8 && q.c.Key() != "" {
+		b, err = q.encrypt(b)
+		if err != nil {
+			return nil, err
+		}
 	}
-
-	//fmt.Printf("Length: %d\n", len(b))
 
 	if _, err := q.c.Write(b); err != nil {
 		return nil, fmt.Errorf("query write: %w", err)
@@ -150,41 +132,43 @@ func (q *queryer) Query() (protocol.Responser, error) {
 	} else if n < minLength {
 		return nil, fmt.Errorf("packet too short (len: %d)", n)
 	}
-	
-	b, err = decrypt(b[:n])
-	if err != nil {
-		return nil, err
+
+	if q.version >= 8 && q.c.Key() != "" {
+		b, err = q.decrypt(b[:n])
+		if err != nil {
+			return nil, err
+		}
 	}
-	
+
 	r := common.NewBinaryReader(b, binary.LittleEndian)
 	i := &Info{}
-	
+
 	// Header.
 	if err = r.Read(&i.Header); err != nil {
 		return nil, err
 	} else if i.Command != ServerInfoResponse {
 		return nil, fmt.Errorf("unexpected cmd %x", i.Command)
 	}
-	
+
 	if i.Version > 1 {
 		// InstanceInfo.
 		if err = q.instanceInfo(r, i); err != nil {
 			return nil, err
 		}
 	}
-	
+
 	// BasicInfo.
 	if err = q.basicInfo(r, i); err != nil {
 		return nil, err
 	}
-	
+
 	if i.Version > 4 {
 		// PerformanceInfo.
 		if err = r.Read(&i.PerformanceInfo); err != nil {
 			return nil, err
 		}
 	}
-	
+
 	if i.Version > 2 {
 		if i.Version > 5 {
 			// MatchState and Teams.
@@ -194,17 +178,17 @@ func (q *queryer) Query() (protocol.Responser, error) {
 		} else if err = r.Read(&i.MatchState.MatchStateV2); err != nil {
 			return nil, err
 		}
-	
+
 		if err = q.teams(r, i); err != nil {
 			return nil, err
 		}
 	}
-	
+
 	// Clients
 	if err = q.clients(r, i); err != nil {
 		return nil, err
 	}
-	
+
 	return i, nil
 }
 
