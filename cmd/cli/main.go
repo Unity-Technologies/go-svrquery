@@ -24,7 +24,6 @@ func main() {
 
 	l := log.New(os.Stderr, "", 0)
 
-
 	if *file != "" {
 		// Use bulk file mode
 		if err := queryBulk(*file); err != nil {
@@ -100,6 +99,9 @@ func server(l *log.Logger, proto, address string) error {
 		Map:            "Map",
 		Port:           1000,
 	})
+	if err != nil {
+		return err
+	}
 
 	addr, err := net.ResolveUDPAddr("udp4", address)
 	if err != nil {
