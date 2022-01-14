@@ -18,7 +18,7 @@ func main() {
 	clientAddr := flag.String("addr", "", "Address to connect to e.g. 127.0.0.1:12345")
 	proto := flag.String("proto", "", "Protocol e.g. sqp, tf2e, tf2e-v7, tf2e-v8")
 	key := flag.String("key", "", "Key to use to authenticate")
-	file := flag.String("file", "", "Bulk file to execute")
+	file := flag.String("file", "", "Bulk file to execute to get basic server information")
 	serverAddr := flag.String("server", "", "Address to start server e.g. 127.0.0.1:12121, :23232")
 	flag.Parse()
 
