@@ -8,7 +8,6 @@ import (
 	"log"
 	"os"
 	"strings"
-	"sync"
 
 	"github.com/multiplay/go-svrquery/lib/svrquery"
 	"github.com/multiplay/go-svrquery/lib/svrquery/protocol"
@@ -16,6 +15,9 @@ import (
 
 const (
 	numWorkers = 100
+
+	// maxQueries is the maximum number of queries that can be queried in one bulk request.
+	maxQueries = 10000
 )
 
 var (
@@ -50,18 +52,16 @@ func queryBulk(file string) error {
 	// To simplify the workerpool load all the entries we are going to work on
 	lines := fileLines(file)
 
-	if len(lines) > 10000 {
-		return fmt.Errorf("too many servers requested %d (max 10000)", len(lines))
+	if len(lines) > maxQueries {
+		return fmt.Errorf("too many servers requested %d (max %d)", len(lines), maxQueries)
 	}
 
 	// Make a jobs channel and a number of workers to processes
 	// work off of the channel.
 	jobChan := make(chan string, len(lines))
 	resultsChan := make(chan BulkResponseItemWork)
-	wg := sync.WaitGroup{}
 	for w := 1; w <= numWorkers; w++ {
-		wg.Add(1)
-		go worker(jobChan, resultsChan, &wg)
+		go worker(jobChan, resultsChan)
 	}
 
 	items := make([]BulkResponseItem, 0, len(lines))
@@ -70,6 +70,7 @@ func queryBulk(file string) error {
 	for _, line := range lines {
 		jobChan <- line
 	}
+	close(jobChan)
 
 	// Receive results from workers.
 	var err error
@@ -88,12 +89,9 @@ func queryBulk(file string) error {
 			err = fmt.Errorf("additional error: %w", v.Err)
 			continue
 		}
-
 		// add the item to our list of items.
 		items = append(items, *v.Item)
 	}
-	close(jobChan)
-	wg.Wait()
 
 	if err != nil {
 		return err
@@ -124,8 +122,7 @@ func fileLines(file string) []string {
 }
 
 // worker is run in a goroutine to provide processing for the items.
-func worker(jobChan <-chan string, results chan<- BulkResponseItemWork, wg *sync.WaitGroup) {
-	defer wg.Done()
+func worker(jobChan <-chan string, results chan<- BulkResponseItemWork) {
 	for entry := range jobChan {
 		item, err := processBulkEntry(entry)
 		results <- BulkResponseItemWork{
@@ -161,13 +158,13 @@ func processBulkEntry(entry string) (*BulkResponseItem, error) {
 
 	client, err := svrquery.NewClient(querySection, addressSection, options...)
 	if err != nil {
-		item.Error = fmt.Sprintf("create client: %s", err.Error())
+		item.Error = fmt.Sprintf("create client: %s", err)
 		return item, nil
 	}
 
 	resp, err := client.Query()
 	if err != nil {
-		item.Error = fmt.Sprintf("query client: %s", err.Error())
+		item.Error = fmt.Sprintf("query client: %s", err)
 		return item, nil
 	}
 
