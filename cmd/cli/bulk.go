@@ -40,7 +40,7 @@ type BulkResponseServerInfoItem struct {
 	Map            string `json:"map"`
 }
 
-// BulkResponseItemWork is an item returned by an worker containing the data item
+// BulkResponseItemWork is an item returned by a worker containing the data item
 // plus any terminal error it encountered.
 type BulkResponseItemWork struct {
 	Item *BulkResponseItem
