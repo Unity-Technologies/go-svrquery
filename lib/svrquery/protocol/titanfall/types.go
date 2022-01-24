@@ -38,6 +38,11 @@ func (i Info) MaxClients() int64 {
 	return int64(i.BasicInfo.MaxClients)
 }
 
+// Map implements protocol.Mapper.
+func (i Info) Map() string {
+	return i.BasicInfo.Map
+}
+
 // Header represents the header of a query response.
 type Header struct {
 	Prefix  int32

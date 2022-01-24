@@ -17,10 +17,20 @@ import (
 func main() {
 	clientAddr := flag.String("addr", "", "Address to connect to e.g. 127.0.0.1:12345")
 	proto := flag.String("proto", "", "Protocol e.g. sqp, tf2e, tf2e-v7, tf2e-v8")
+	key := flag.String("key", "", "Key to use to authenticate")
+	file := flag.String("file", "", "Bulk file to execute to get basic server information")
 	serverAddr := flag.String("server", "", "Address to start server e.g. 127.0.0.1:12121, :23232")
 	flag.Parse()
 
 	l := log.New(os.Stderr, "", 0)
+
+	if *file != "" {
+		// Use bulk file mode
+		if err := queryBulk(*file); err != nil {
+			l.Fatal(err)
+		}
+		return
+	}
 
 	if *serverAddr != "" && *clientAddr != "" {
 		bail(l, "Cannot run both a server and a client. Specify either -addr OR -server flags")
@@ -36,20 +46,25 @@ func main() {
 		if *proto == "" {
 			bail(l, "Protocol required in server mode")
 		}
-		queryMode(l, *proto, *clientAddr)
+		queryMode(l, *proto, *clientAddr, *key)
 	default:
 		bail(l, "Please supply some options")
 	}
 }
 
-func queryMode(l *log.Logger, proto, address string) {
-	if err := query(proto, address); err != nil {
+func queryMode(l *log.Logger, proto, address, key string) {
+	if err := query(proto, address, key); err != nil {
 		l.Fatal(err)
 	}
 }
 
-func query(proto, address string) error {
-	c, err := svrquery.NewClient(proto, address)
+func query(proto, address, key string) error {
+	options := make([]svrquery.Option, 0)
+	if key != "" {
+		options = append(options, svrquery.WithKey(key))
+	}
+
+	c, err := svrquery.NewClient(proto, address, options...)
 	if err != nil {
 		return err
 	}
@@ -84,6 +99,9 @@ func server(l *log.Logger, proto, address string) error {
 		Map:            "Map",
 		Port:           1000,
 	})
+	if err != nil {
+		return err
+	}
 
 	addr, err := net.ResolveUDPAddr("udp4", address)
 	if err != nil {

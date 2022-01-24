@@ -77,13 +77,26 @@ func TestQuery(t *testing.T) {
 	}
 	v7.TeamsLeftWithPlayersNum = 6
 
+	v8 := v7
+	v8.Version = 8
+	v8.InstanceInfoV8 = InstanceInfoV8{
+		Retail:         1,
+		InstanceType:   2,
+		ClientCRC:      4294967295,
+		NetProtocol:    526,
+		HealthFlags:    0,
+		RandomServerID: 0,
+	}
+	v8.InstanceInfo = InstanceInfo{}
+
 	cases := []struct {
-		name     string
-		version  byte
-		request  string
-		response string
-		key      string
-		expected Info
+		name        string
+		version     byte
+		request     string
+		response    string
+		key         string
+		expected    Info
+		expEncypted bool
 	}{
 		{
 			name:     "v3",
@@ -98,6 +111,15 @@ func TestQuery(t *testing.T) {
 			request:  "request-v7",
 			response: "response-v7",
 			expected: v7,
+		},
+		{
+			name:        "v8",
+			version:     8,
+			request:     "request-v8",
+			response:    "response-v8",
+			expected:    v8,
+			key:         testKey,
+			expEncypted: true,
 		},
 		{
 			name:     "keyed",
@@ -119,20 +141,56 @@ func TestQuery(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
+			var err error
+			mc := &clienttest.MockClient{}
+			mc.On("Key").Return("Z2ZkZ3Nnbmpza2U0cnRyZQ==")
+			p := queryer{
+				c:       mc,
+				version: tc.version,
+			}
+
 			req := clienttest.LoadData(t, testDir, tc.request)
 			resp := clienttest.LoadData(t, testDir, tc.response)
-			m := &clienttest.MockClient{}
 
-			m.On("Write", req).Return(len(req), nil)
-			m.On("Read", mock.AnythingOfType("[]uint8")).Return(resp, nil)
-			m.On("Key").Return(tc.key)
+			if tc.expEncypted {
+				req, err = p.encrypt(req)
+				require.NoError(t, err)
+				resp, err = p.encrypt(resp)
+				require.NoError(t, err)
+			}
 
-			p := newQueryer(tc.version)(m)
+			mc.On("Write", mock.AnythingOfType("[]uint8")).Return(len(req), nil)
+			mc.On("Read", mock.AnythingOfType("[]uint8")).Return(resp, nil)
+
 			i, err := p.Query()
 			require.NoError(t, err)
 			require.IsType(t, &Info{}, i)
 			require.Equal(t, &tc.expected, i)
-			m.AssertExpectations(t)
+			mc.AssertExpectations(t)
 		})
 	}
+}
+
+func TestEncryptAndDecrypt(t *testing.T) {
+	mc := &clienttest.MockClient{}
+	mc.On("Key").Return("Z2ZkZ3Nnbmpza2U0cnRyZQ==")
+	p := queryer{
+		c: mc,
+	}
+
+	text := `Line 1: Some test text to be encrypted and decrypted
+Line 2: Some test text to be encrypted and decrypted
+Line 3: Some test text to be encrypted and decrypted
+Line 4: Some test text to be encrypted and decrypted
+Line 5: Some test text to be encrypted and decrypted
+Line 6: Some test text to be encrypted and decrypted
+Line 7: Some test text to be encrypted and decrypted
+Line 8: Some test text to be encrypted and decrypted`
+
+	encoded, err := p.encrypt([]byte(text))
+	require.NoError(t, err)
+
+	decoded, err := p.decrypt(encoded)
+	require.NoError(t, err)
+	require.Equal(t, text, string(decoded))
 }

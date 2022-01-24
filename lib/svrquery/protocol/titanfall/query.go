@@ -1,8 +1,13 @@
 package titanfall
 
 import (
+	"crypto/aes"
+	"crypto/cipher"
+	"crypto/rand"
+	"encoding/base64"
 	"encoding/binary"
 	"fmt"
+	"io"
 
 	"github.com/multiplay/go-svrquery/lib/svrquery/common"
 	"github.com/multiplay/go-svrquery/lib/svrquery/protocol"
@@ -12,7 +17,10 @@ import (
 var (
 
 	// minLength is the smallest packet we can expect.
-	minLength = 26
+	minLength         = 26
+	tagSize           = 16
+	packetSize        = 1200
+	gcmAdditionalData = []byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16}
 )
 
 type queryer struct {
@@ -29,11 +37,76 @@ func newQueryer(version byte) func(c protocol.Client) protocol.Queryer {
 	}
 }
 
+// encrypt encrypts the byte buffer given to it.
+func (q *queryer) encrypt(b []byte) ([]byte, error) {
+	keyBytes, err := base64.StdEncoding.DecodeString(q.c.Key())
+	if err != nil {
+		return nil, fmt.Errorf("decode key: %w", err)
+	}
+
+	c, err := aes.NewCipher(keyBytes)
+	if err != nil {
+		return nil, fmt.Errorf("new aes cipher: %w", err)
+	}
+
+	gcm, err := cipher.NewGCM(c)
+	if err != nil {
+		return nil, fmt.Errorf("new gcm: %w", err)
+	}
+
+	nonce := make([]byte, gcm.NonceSize())
+	if _, err = io.ReadFull(rand.Reader, nonce); err != nil {
+		return nil, fmt.Errorf("read random nonce: %w", err)
+	}
+
+	// This will output in the form CipherTest | Tag and will need rearranging.
+	cipherTextAndTag := gcm.Seal(nil, nonce, b, gcmAdditionalData)
+
+	// Rearrange output to nonce | tag | ciphertext.
+	newCipherText := nonce
+	newCipherText = append(newCipherText, cipherTextAndTag[len(cipherTextAndTag)-tagSize:]...)
+	newCipherText = append(newCipherText, cipherTextAndTag[:len(cipherTextAndTag)-tagSize]...)
+
+	return newCipherText, nil
+}
+
+// decrypt decrypts the byte buffer given to it.
+func (q *queryer) decrypt(b []byte) ([]byte, error) {
+	keyBytes, err := base64.StdEncoding.DecodeString(q.c.Key())
+	if err != nil {
+		return nil, fmt.Errorf("decode key: %w", err)
+	}
+
+	c, err := aes.NewCipher(keyBytes)
+	if err != nil {
+		return nil, fmt.Errorf("new aes cipher: %w", err)
+	}
+
+	gcm, err := cipher.NewGCM(c)
+	if err != nil {
+		return nil, fmt.Errorf("new gcm: %w", err)
+	}
+
+	if len(b) < gcm.NonceSize() {
+		return nil, fmt.Errorf("incoming bytes smaller than %d", gcm.NonceSize())
+	}
+
+	nonce, tag, b := b[:gcm.NonceSize()], b[gcm.NonceSize():gcm.NonceSize()+tagSize], b[gcm.NonceSize()+tagSize:]
+	b = append(b, tag...)
+	plaintext, err := gcm.Open(nil, nonce, b, gcmAdditionalData)
+	if err != nil {
+		return nil, err
+	}
+
+	return plaintext, nil
+}
+
 // Query implements protocol.Queryer.
-func (q *queryer) Query() (protocol.Responser, error) {
-	b := make([]byte, 1200)
+func (q *queryer) Query() (resp protocol.Responser, err error) {
+	b := make([]byte, packetSize)
 	copy(b, q.serverInfoPkt())
 
+	// For older query versions we use a keyed magic section to auth. For newer versions we use encryption
 	if key := q.c.Key(); key != "" {
 		if q.version < 5 {
 			// If keyed data asked for bump version sent to supported version level.
@@ -42,18 +115,32 @@ func (q *queryer) Query() (protocol.Responser, error) {
 		copy(b[6:], key)
 	}
 
+	if q.version >= 8 && q.c.Key() != "" {
+		b, err = q.encrypt(b)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	if _, err := q.c.Write(b); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("query write: %w", err)
 	}
 
 	n, err := q.c.Read(b)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("query read: %w", err)
 	} else if n < minLength {
 		return nil, fmt.Errorf("packet too short (len: %d)", n)
 	}
 
-	r := common.NewBinaryReader(b[:n], binary.LittleEndian)
+	if q.version >= 8 && q.c.Key() != "" {
+		b, err = q.decrypt(b[:n])
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	r := common.NewBinaryReader(b, binary.LittleEndian)
 	i := &Info{}
 
 	// Header.

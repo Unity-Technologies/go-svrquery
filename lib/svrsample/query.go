@@ -10,8 +10,8 @@ import (
 )
 
 var (
-	// ErrProtoNotFound returned when a protocol is not found
-	ErrProtoNotFound = errors.New("protocol not found")
+	// ErrProtoNotSupported returned when a protocol is not supported
+	ErrProtoNotSupported = errors.New("protocol not supported")
 )
 
 // GetResponder gets the appropriate responder for the protocol provided
@@ -20,5 +20,5 @@ func GetResponder(proto string, state common.QueryState) (common.QueryResponder,
 	case "sqp":
 		return sqp.NewQueryResponder(state)
 	}
-	return nil, fmt.Errorf("%w: %s", ErrProtoNotFound, proto)
+	return nil, fmt.Errorf("%w: %s", ErrProtoNotSupported, proto)
 }
