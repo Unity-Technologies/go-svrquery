@@ -5,8 +5,7 @@ go-svrquery is a [Go](http://golang.org/) client for talking to game servers usi
 Features
 --------
 * Support for various game server query protocol's including:
-** Titanfall
-* Supports per protocol custom [netdata](https://github.com/netdata/netdata) graphs as required by [go.d.plugin](https://github.com/netdata/go.d.plugin) which is based on the [go-orchestrator plugin framework](https://github.com/netdata/go-orchestrator).
+** SQP, TF2E
 
 Installation
 ------------
