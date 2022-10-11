@@ -12,7 +12,9 @@ type Queryer interface {
 // Responser is an interface implemented by types which represent a query response.
 type Responser interface {
 	NumClients() int64
+	NumBotClients() int64
 	MaxClients() int64
+	TotalClientsConnectedEver() int64
 }
 
 // Mapper represents something which can return the current map.
