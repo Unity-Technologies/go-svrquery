@@ -10,3 +10,10 @@
 
 # Output of the go coverage tool, specifically when used with LiteIDE
 *.out
+
+# Editor / MAC files
+*.sublime-*
+*.iml
+.idea/
+.DS_Store
+Thumbs.db

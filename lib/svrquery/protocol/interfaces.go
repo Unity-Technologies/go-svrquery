@@ -2,8 +2,6 @@ package protocol
 
 import (
 	"io"
-
-	"github.com/netdata/go-orchestrator/module"
 )
 
 // Queryer is an interface implemented by all svrquery protocols.
@@ -27,16 +25,4 @@ type Client interface {
 	io.ReadWriteCloser
 	Key() string
 	Address() string
-}
-
-// Charter is an interface which is implemented by types which support custom netdata
-// charts.
-type Charter interface {
-	Charts(serverID int64) module.Charts
-}
-
-// Collector is an interface which is implemented by Responsers that provide custom
-// netdata metrics.
-type Collector interface {
-	Collect(serverID int64, mx map[string]int64)
 }

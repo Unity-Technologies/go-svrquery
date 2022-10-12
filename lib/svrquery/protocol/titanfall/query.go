@@ -11,7 +11,6 @@ import (
 
 	"github.com/multiplay/go-svrquery/lib/svrquery/common"
 	"github.com/multiplay/go-svrquery/lib/svrquery/protocol"
-	"github.com/netdata/go-orchestrator/module"
 )
 
 var (
@@ -324,24 +323,6 @@ func (q *queryer) clients(r *common.BinaryReader, i *Info) (err error) {
 	}
 
 	return nil
-}
-
-// Charts implements protocol.Charter.
-func (q *queryer) Charts(serverID int64) module.Charts {
-	if q.c.Key() == "" {
-		return nil
-	}
-
-	cs := *charts.Copy()
-	for _, c := range cs {
-		c.ID = fmt.Sprintf(c.ID, serverID)
-		c.Fam = fmt.Sprintf(c.Fam, serverID)
-		for _, d := range c.Dims {
-			d.ID = fmt.Sprintf(d.ID, serverID)
-		}
-		c.MarkNotCreated()
-	}
-	return cs
 }
 
 // serverInfoPkt returns a byte array of info request packet data.
