@@ -68,11 +68,6 @@ func (q *QueryResponse) MaxClients() int64 {
 	return int64(q.ServerInfo.MaxPlayers)
 }
 
-// NumBotClients only exists in titanfall protocol, but is needed to satisfy interface
-func (q *QueryResponse) NumBotClients() int64 {
-	return 0
-}
-
 // NumClients returns the number of clients.
 func (q *QueryResponse) NumClients() int64 {
 	if q.ServerInfo == nil {
@@ -80,11 +75,6 @@ func (q *QueryResponse) NumClients() int64 {
 		return 0
 	}
 	return int64(q.ServerInfo.CurrentPlayers)
-}
-
-// TotalClientsConnectedEver only exists in titanfall protocol, but is needed to satisfy interface
-func (q *QueryResponse) TotalClientsConnectedEver() int64 {
-	return 0
 }
 
 // Map implements protocol.Mapper.
