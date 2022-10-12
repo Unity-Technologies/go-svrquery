@@ -38,6 +38,11 @@ func (pr *packetReader) ReadByte() (v byte, err error) {
 	return v, binary.Read(pr, binary.BigEndian, &v)
 }
 
+// ReadFloat32 returns a float32 from the underlying reader
+func (pr *packetReader) ReadFloat32() (v float32, err error) {
+	return v, binary.Read(pr, binary.BigEndian, &v)
+}
+
 // ReadString returns a string and the number of bytes representing it (len byte + len) from the underlying reader
 func (pr *packetReader) ReadString() (int64, string, error) {
 	// Read the first byte as the length of the string

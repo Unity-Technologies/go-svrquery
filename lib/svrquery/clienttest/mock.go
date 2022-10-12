@@ -1,7 +1,6 @@
 package clienttest
 
 import (
-	"fmt"
 	"io/ioutil"
 	"path/filepath"
 	"testing"
@@ -50,17 +49,4 @@ func LoadData(t *testing.T, fileParts ...string) []byte {
 	d, err := ioutil.ReadFile(filepath.Join(fileParts...))
 	require.NoError(t, err)
 	return d
-}
-
-func LoadMultiData(t *testing.T, files int, fileParts ...string) [][]byte {
-	pkts := make([][]byte, files)
-	file := fileParts[len(fileParts)-1]
-	for i := range pkts {
-		fileParts[len(fileParts)-1] = fmt.Sprintf("%s_%03d", file, i)
-		d, err := ioutil.ReadFile(filepath.Join(fileParts...))
-		require.NoError(t, err)
-		pkts[i] = d
-		require.NoError(t, err)
-	}
-	return pkts
 }

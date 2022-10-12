@@ -7,10 +7,18 @@ type DataType byte
 
 // Size returns the DataTypes size in bytes, or -1 if unknown
 func (dt DataType) Size() int {
-	if dt > Uint64 {
+	switch dt {
+	case Byte:
+		return 1
+	case Uint16:
+		return 2
+	case Uint32, Float32:
+		return 4
+	case Uint64:
+		return 8
+	default:
 		return -1
 	}
-	return 1 << dt
 }
 
 // Supported types for response fields
@@ -20,6 +28,7 @@ const (
 	Uint32
 	Uint64
 	String
+	Float32
 )
 
 // Request Types
@@ -40,4 +49,5 @@ const (
 	ServerRules
 	PlayerInfo
 	TeamInfo
+	Metrics
 )

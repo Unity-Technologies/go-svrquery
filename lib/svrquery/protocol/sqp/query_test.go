@@ -26,7 +26,6 @@ func TestQuery(t *testing.T) {
 	cases := []struct {
 		name   string
 		chunks byte
-		multi  int
 		f      func(t *testing.T, challengeID uint32, c *queryer)
 	}{
 		{
@@ -38,12 +37,6 @@ func TestQuery(t *testing.T) {
 			name:   "info_single_malformed",
 			chunks: ServerInfo,
 			f:      testQueryServerInfoSinglePacketMalformed,
-		},
-		{
-			name:   "info_multi",
-			chunks: ServerInfo,
-			multi:  2,
-			f:      testQueryServerInfoMultiPacket,
 		},
 		{
 			name:   "rules",
@@ -59,6 +52,11 @@ func TestQuery(t *testing.T) {
 			name:   "team",
 			chunks: TeamInfo,
 			f:      testQueryTeamInfoSinglePacket,
+		},
+		{
+			name:   "metrics",
+			chunks: Metrics,
+			f:      testQueryMetricsSinglePacket,
 		},
 	}
 
@@ -82,17 +80,9 @@ func TestQuery(t *testing.T) {
 			testSetChallenge(req, chalResp)
 			m.On("Write", req).Return(len(req), nil).Once()
 
-			if tc.multi > 0 {
-				pkts := clienttest.LoadMultiData(t, tc.multi, testDir, tc.name+"_response")
-				for _, resp := range pkts {
-					testSetChallenge(resp, chalResp)
-					m.On("Read", mock.AnythingOfType("[]uint8")).Return(resp, nil).Once()
-				}
-			} else {
-				resp := clienttest.LoadData(t, testDir, tc.name+"_response")
-				testSetChallenge(resp, chalResp)
-				m.On("Read", mock.AnythingOfType("[]uint8")).Return(resp, nil).Once()
-			}
+			resp := clienttest.LoadData(t, testDir, tc.name+"_response")
+			testSetChallenge(resp, chalResp)
+			m.On("Read", mock.AnythingOfType("[]uint8")).Return(resp, nil).Once()
 
 			tc.f(t, cid, c)
 		})
@@ -217,4 +207,24 @@ func testQueryTeamInfoSinglePacket(t *testing.T, challengeID uint32, c *queryer)
 	require.Equal(t, uint32(16777218), qr.TeamInfo.Teams[1]["field3"].Uint32())
 	require.Equal(t, uint64(72057594037927938), qr.TeamInfo.Teams[1]["field4"].Uint64())
 	require.Equal(t, "STRING", qr.TeamInfo.Teams[1]["field5"].String())
+}
+
+func testQueryMetricsSinglePacket(t *testing.T, challengeID uint32, c *queryer) {
+	r, err := c.Query()
+	require.NoError(t, err, "query request should not have failed")
+	qr := r.(*QueryResponse)
+
+	require.Equal(t, challengeID, c.challengeID, "expected correct challenge id")
+
+	require.NotNil(t, qr, "expected query response")
+	require.NotNil(t, qr.Metrics, "expected metrics")
+
+	require.Equal(t, byte(6), qr.Metrics.MetricCount)
+	require.Len(t, qr.Metrics.Metrics, int(qr.Metrics.MetricCount))
+	require.Equal(t, float32(1), qr.Metrics.Metrics[0])
+	require.Equal(t, float32(0), qr.Metrics.Metrics[1])
+	require.Equal(t, float32(3.14159), qr.Metrics.Metrics[2])
+	require.Equal(t, float32(55.57), qr.Metrics.Metrics[3])
+	require.Equal(t, float32(438.2522), qr.Metrics.Metrics[4])
+	require.Equal(t, float32(-123.456), qr.Metrics.Metrics[5])
 }
