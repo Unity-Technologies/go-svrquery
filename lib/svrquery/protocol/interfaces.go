@@ -15,14 +15,6 @@ type Responser interface {
 	MaxClients() int64
 }
 
-// ResponserV2 is an interface implemented by types which represent a query response.
-// 	It contains additional methods for advanced querying capabilities.
-type ResponserV2 interface {
-	Responser
-	TotalClientsConnectedEver() int64
-	NumBotClients() int64
-}
-
 // Mapper represents something which can return the current map.
 type Mapper interface {
 	Map() string
