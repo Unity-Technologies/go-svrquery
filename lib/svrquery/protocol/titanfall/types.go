@@ -185,8 +185,9 @@ type PerformanceInfo struct {
 // MatchStateV9 represents match state contained in a query response.
 // A number of fields were removed in this version of the schema.
 type MatchStateV9 struct {
-	Phase      byte
-	TimePassed uint16 // seconds
+	Phase                   byte
+	TimePassed              uint16 // seconds
+	TeamsLeftWithPlayersNum uint16
 }
 
 // MatchStateV2 represents match state contained in a query response.

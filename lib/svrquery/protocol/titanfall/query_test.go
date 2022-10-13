@@ -75,7 +75,7 @@ func TestQuery(t *testing.T) {
 		AverageUserCommandTime: 3,
 		MaxUserCommandTime:     4,
 	}
-	v7.TeamsLeftWithPlayersNum = 6
+	v7.MatchState.TeamsLeftWithPlayersNum = 6
 
 	v8 := v7
 	v8.Version = 8
@@ -88,6 +88,23 @@ func TestQuery(t *testing.T) {
 		RandomServerID: 0,
 	}
 	v8.InstanceInfo = InstanceInfo{}
+
+	v9 := v8
+	v9.Version = 9
+	v9.BasicInfo.NumBotClients = 3
+	v9.BasicInfo.TotalClientsConnectedEver = 0
+	v9.PerformanceInfoV9 = PerformanceInfoV9{
+		PerformanceInfo: v8.PerformanceInfo,
+		CommitMemory:    8472,
+		ResidentMemory:  3901,
+	}
+	v9.PerformanceInfo = PerformanceInfo{}
+	v9.MatchStateV9 = MatchStateV9{
+		Phase:                   3,
+		TimePassed:              0,
+		TeamsLeftWithPlayersNum: 0,
+	}
+	v9.MatchState = MatchState{}
 
 	cases := []struct {
 		name        string
@@ -118,6 +135,15 @@ func TestQuery(t *testing.T) {
 			request:     "request-v8",
 			response:    "response-v8",
 			expected:    v8,
+			key:         testKey,
+			expEncypted: true,
+		},
+		{
+			name:        "v9",
+			version:     9,
+			request:     "request-v9",
+			response:    "response-v9",
+			expected:    v9,
 			key:         testKey,
 			expEncypted: true,
 		},
