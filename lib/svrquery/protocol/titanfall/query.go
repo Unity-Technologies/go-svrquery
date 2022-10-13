@@ -161,7 +161,12 @@ func (q *queryer) Query() (resp protocol.Responser, err error) {
 		return nil, err
 	}
 
-	if i.Version > 4 {
+	if i.Version >= 9 {
+		// PerformanceInfoV9.
+		if err = r.Read(&i.PerformanceInfoV9); err != nil {
+			return nil, err
+		}
+	} else if i.Version > 4 {
 		// PerformanceInfo.
 		if err = r.Read(&i.PerformanceInfo); err != nil {
 			return nil, err
@@ -169,7 +174,11 @@ func (q *queryer) Query() (resp protocol.Responser, err error) {
 	}
 
 	if i.Version > 2 {
-		if i.Version > 5 {
+		if i.Version >= 9 {
+			if err = r.Read(&i.MatchStateV9); err != nil {
+				return nil, err
+			}
+		} else if i.Version > 5 {
 			// MatchState and Teams.
 			if err = r.Read(&i.MatchState); err != nil {
 				return nil, err
@@ -249,9 +258,24 @@ func (q *queryer) basicInfo(r *common.BinaryReader, i *Info) (err error) {
 
 	if err = r.Read(&i.BasicInfo.NumClients); err != nil {
 		return err
-	} else if err = r.Read(&i.BasicInfo.MaxClients); err != nil {
+	}
+
+	if i.Version >= 9 {
+		if err = r.Read(&i.BasicInfo.NumBotClients); err != nil {
+			return err
+		}
+	}
+
+	if err = r.Read(&i.BasicInfo.MaxClients); err != nil {
 		return err
 	}
+
+	if i.Version >= 9 {
+		if err = r.Read(&i.BasicInfo.TotalClientsConnectedEver); err != nil {
+			return err
+		}
+	}
+
 	i.BasicInfo.Map, err = r.ReadString()
 	return err
 }

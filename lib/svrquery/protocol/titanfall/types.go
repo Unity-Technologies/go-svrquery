@@ -22,8 +22,13 @@ type Info struct {
 	BasicInfo
 	// Version 4+
 	PerformanceInfo
+	// Version 9+
+	PerformanceInfoV9
 	// Version 2+
 	MatchState
+	// Version 9+
+	MatchStateV9
+
 	Teams   []Team
 	Clients []Client
 }
@@ -33,9 +38,19 @@ func (i Info) NumClients() int64 {
 	return int64(i.BasicInfo.NumClients)
 }
 
+// NumBotClients implements protocol.Responser.
+func (i Info) NumBotClients() int64 {
+	return int64(i.BasicInfo.NumBotClients)
+}
+
 // MaxClients implements protocol.Responser.
 func (i Info) MaxClients() int64 {
 	return int64(i.BasicInfo.MaxClients)
+}
+
+// TotalClientsConnectedEver implements protocol.Responser.
+func (i Info) TotalClientsConnectedEver() int64 {
+	return int64(i.BasicInfo.TotalClientsConnectedEver)
 }
 
 // Map implements protocol.Mapper.
@@ -139,15 +154,24 @@ func (a HealthFlags) DOS() bool {
 
 // BasicInfo represents basic information contained in a query response.
 type BasicInfo struct {
-	Port            uint16
-	Platform        string
-	PlaylistVersion string
-	PlaylistNum     uint32
-	PlaylistName    string
-	NumClients      byte
-	MaxClients      byte
-	Map             string
-	PlatformPlayers map[string]byte
+	Port                      uint16
+	Platform                  string
+	PlaylistVersion           string
+	PlaylistNum               uint32
+	PlaylistName              string
+	NumClients                byte
+	NumBotClients             byte
+	MaxClients                byte
+	TotalClientsConnectedEver uint32
+	Map                       string
+	PlatformPlayers           map[string]byte
+}
+
+// PerformanceInfoV9 represents frame information contained in a query response.
+type PerformanceInfoV9 struct {
+	PerformanceInfo
+	CommitMemory   uint32
+	ResidentMemory uint32
 }
 
 // PerformanceInfo represents frame information contained in a query response.
@@ -156,6 +180,14 @@ type PerformanceInfo struct {
 	MaxFrameTime           float32
 	AverageUserCommandTime float32
 	MaxUserCommandTime     float32
+}
+
+// MatchStateV9 represents match state contained in a query response.
+// A number of fields were removed in this version of the schema.
+type MatchStateV9 struct {
+	Phase                   byte
+	TimePassed              uint16 // seconds
+	TeamsLeftWithPlayersNum uint16
 }
 
 // MatchStateV2 represents match state contained in a query response.
