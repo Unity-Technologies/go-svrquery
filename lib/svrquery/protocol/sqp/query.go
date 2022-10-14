@@ -437,7 +437,7 @@ func (q *queryer) readQueryMetrics(qr *QueryResponse, r *packetReader) (err erro
 	l -= int64(Byte.Size())
 
 	if qr.Metrics.MetricCount > MaxMetrics {
-		qr.Metrics.MetricCount = MaxMetrics
+		return NewErrMalformedPacketf("metric count cannot be greater than %v, but got %v", MaxMetrics, qr.Metrics.MetricCount)
 	}
 
 	qr.Metrics.Metrics = make([]float32, qr.Metrics.MetricCount)
