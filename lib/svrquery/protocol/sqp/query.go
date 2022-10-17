@@ -85,18 +85,16 @@ func (q *queryer) readQueryHeader() (uint16, byte, byte, uint16, error) {
 	}
 
 	var curPkt, lastPkt byte
-	curPkt, err = q.reader.ReadByte()
-	if err != nil {
+	if curPkt, err = q.reader.ReadByte(); err != nil {
 		return 0, 0, 0, 0, err
 	}
 
-	lastPkt, err = q.reader.ReadByte()
-	if err != nil {
+	if lastPkt, err = q.reader.ReadByte(); err != nil {
 		return 0, 0, 0, 0, err
 	}
 
-	pktLen, err := q.reader.ReadUint16()
-	if err != nil {
+	var pktLen uint16
+	if pktLen, err = q.reader.ReadUint16(); err != nil {
 		return 0, 0, 0, 0, err
 	}
 
@@ -108,21 +106,18 @@ func (q *queryer) readQueryHeader() (uint16, byte, byte, uint16, error) {
 }
 
 func (q *queryer) readQuery(requestedChunks byte) (*QueryResponse, error) {
-	version, curPkt, lastPkt, pktLen, err := q.readQueryHeader()
+	// Multi-packet streams are not supported.
+	version, _, _, pktLen, err := q.readQueryHeader()
 	if err != nil {
 		return nil, err
 	}
 
-	if lastPkt == 0 && curPkt == 0 {
-		// If the header says the body is empty, we should just return now
-		if pktLen == 0 {
-			return &QueryResponse{Version: version, Address: q.c.Address()}, nil
-		}
-
-		return q.readQuerySinglePacket(q.reader, version, requestedChunks, uint32(pktLen))
+	// If the header says the body is empty, we should just return now
+	if pktLen == 0 {
+		return &QueryResponse{Version: version, Address: q.c.Address()}, nil
 	}
 
-	return q.readQueryMultiPacket(version, curPkt, lastPkt, requestedChunks, pktLen)
+	return q.readQuerySinglePacket(q.reader, version, requestedChunks, uint32(pktLen))
 }
 
 func (q *queryer) readQuerySinglePacket(r *packetReader, version uint16, requestedChunks byte, pktLen uint32) (*QueryResponse, error) {
@@ -155,6 +150,13 @@ func (q *queryer) readQuerySinglePacket(r *packetReader, version uint16, request
 			return nil, err
 		}
 		l -= qr.TeamInfo.ChunkLength + uint32(Uint32.Size())
+	}
+
+	if requestedChunks&Metrics > 0 {
+		if err := q.readQueryMetrics(qr, r); err != nil {
+			return nil, err
+		}
+		l -= qr.Metrics.ChunkLength + uint32(Uint32.Size())
 	}
 
 	if l > 0 {
@@ -420,58 +422,43 @@ func (q *queryer) readQueryTeamInfo(qr *QueryResponse, r *packetReader) (err err
 	return nil
 }
 
-func (q *queryer) readQueryMultiPacket(version uint16, curPkt, lastPkt, requestedChunks byte, pktLen uint16) (*QueryResponse, error) {
-	// Setup our array of packet bodies
-	expectedPkts := lastPkt + 1
-	multiPkt := make(map[byte][]byte, expectedPkts)
-	totalPktLen := uint32(pktLen)
+func (q *queryer) readQueryMetrics(qr *QueryResponse, r *packetReader) (err error) {
+	qr.Metrics = &MetricsChunk{}
 
-	// Handle this first packet
-	multiPkt[curPkt] = make([]byte, pktLen)
-	n, err := q.reader.Read(multiPkt[curPkt])
+	if qr.Metrics.ChunkLength, err = r.ReadUint32(); err != nil {
+		return err
+	}
+	l := int64(qr.Metrics.ChunkLength)
+
+	qr.Metrics.MetricCount, err = r.ReadByte()
 	if err != nil {
-		return nil, err
-	} else if uint16(n) != pktLen {
-		return nil, NewErrMalformedPacketf("expected packet length of %v, but read %v bytes", pktLen, n)
+		return err
+	}
+	l -= int64(Byte.Size())
+
+	if qr.Metrics.MetricCount > MaxMetrics {
+		return NewErrMalformedPacketf("metric count cannot be greater than %v, but got %v", MaxMetrics, qr.Metrics.MetricCount)
 	}
 
-	// Remember the challengeID so that we can verify each packet we are reading is
-	// part of this multi-packet response
-	challengeID := q.challengeID
-
-	// Handle each subsequent packet until we have all of the ones we need
-	for len(multiPkt) != int(expectedPkts) {
-		version, curPkt, lastPkt, pktLen, err = q.readQueryHeader()
+	qr.Metrics.Metrics = make([]float32, qr.Metrics.MetricCount)
+	for i := 0; i < int(qr.Metrics.MetricCount) && l > 0; i++ {
+		qr.Metrics.Metrics[i], err = r.ReadFloat32()
 		if err != nil {
-			return nil, err
+			return err
 		}
+		l -= int64(Float32.Size())
+	}
 
-		// If this packet isn't part of the multi-packet response we are expecting, discard it
-		if q.challengeID != challengeID {
-			if _, err := io.CopyN(ioutil.Discard, q.reader, int64(pktLen)); err != nil {
-				return nil, err
-			}
-			continue
-		}
-
-		totalPktLen += uint32(pktLen)
-		multiPkt[curPkt] = make([]byte, pktLen)
-		n, err := q.reader.Read(multiPkt[curPkt])
-		if err != nil {
-			return nil, err
-		} else if uint16(n) != pktLen {
-			return nil, NewErrMalformedPacketf("expected packet length of %v, but read %v bytes", pktLen, n)
+	if l < 0 {
+		// If we have read more bytes than expected, the packet is malformed
+		return NewErrMalformedPacketf("expected chunk length of %v, but have %v bytes remaining", qr.Metrics.ChunkLength, l)
+	} else if l > 0 {
+		// If we have extra bytes remaining, we assume they are new fields from a future
+		// query version and discard them
+		if _, err = io.CopyN(ioutil.Discard, r, l); err != nil {
+			return err
 		}
 	}
 
-	// Now recombine the packets into the right order.
-	// Sure, this could be more efficient by not using a map before
-	// and instead just inserting the packets into the correct place
-	// in a slice using splicing, but for now this is easier.
-	buf := &bytes.Buffer{}
-	for curPkt = 0; curPkt <= lastPkt; curPkt++ {
-		buf.Write(multiPkt[curPkt])
-	}
-
-	return q.readQuerySinglePacket(newPacketReader(buf), version, requestedChunks, totalPktLen)
+	return nil
 }

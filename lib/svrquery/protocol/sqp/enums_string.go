@@ -13,11 +13,12 @@ func _() {
 	_ = x[Uint32-2]
 	_ = x[Uint64-3]
 	_ = x[String-4]
+	_ = x[Float32-5]
 }
 
-const _DataType_name = "ByteUint16Uint32Uint64String"
+const _DataType_name = "ByteUint16Uint32Uint64StringFloat32"
 
-var _DataType_index = [...]uint8{0, 4, 10, 16, 22, 28}
+var _DataType_index = [...]uint8{0, 4, 10, 16, 22, 28, 35}
 
 func (i DataType) String() string {
 	if i >= DataType(len(_DataType_index)-1) {

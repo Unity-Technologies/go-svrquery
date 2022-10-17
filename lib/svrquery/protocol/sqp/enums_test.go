@@ -34,6 +34,11 @@ func TestDataType_Size(t *testing.T) {
 			want: -1,
 		},
 		{
+			name: "Float32 size",
+			dt:   Float32,
+			want: 4,
+		},
+		{
 			name: "Unknown size",
 			dt:   DataType(99),
 			want: -1,

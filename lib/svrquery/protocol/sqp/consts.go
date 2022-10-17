@@ -7,4 +7,7 @@ const (
 
 	// Version is the query protocol version this client uses.
 	Version = uint16(1)
+
+	// MaxMetrics is the maximum number of metrics supported in a request.
+	MaxMetrics = byte(25)
 )

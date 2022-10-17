@@ -14,4 +14,5 @@ type QueryState struct {
 	GameType       string
 	Map            string
 	Port           uint16
+	Metrics        []float32
 }

@@ -57,6 +57,14 @@ func TestDynamicValue_MarshalJSON(t *testing.T) {
 			want: []byte(`"a string"`),
 		},
 		{
+			name: "float32 value",
+			fields: fields{
+				Type:  Float32,
+				Value: float32(3.14159),
+			},
+			want: []byte(`3.14159`),
+		},
+		{
 			name: "unknown type value",
 			fields: fields{
 				Type:  255,

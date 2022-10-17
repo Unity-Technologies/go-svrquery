@@ -32,8 +32,10 @@ type queryWireFormat struct {
 	CurrentPacketNum byte
 	LastPacketNum    byte
 	PayloadLength    uint16
-	ServerInfoLength uint32
-	ServerInfo       ServerInfo
+	ServerInfoLength *uint32
+	ServerInfo       *ServerInfo
+	MetricsLength    *uint32
+	Metrics          *Metrics
 }
 
 // NewQueryResponder returns creates a new responder capable of responding
@@ -112,6 +114,8 @@ func (q *QueryResponder) handleQuery(clientAddress string, buf []byte) ([]byte, 
 
 	requestedChunks := buf[7]
 	wantsServerInfo := requestedChunks&0x1 == 1
+	wantsMetrics := requestedChunks&0x10 == 16
+
 	f := queryWireFormat{
 		Header:     1,
 		Challenge:  expectedChallenge.(uint32),
@@ -121,9 +125,17 @@ func (q *QueryResponder) handleQuery(clientAddress string, buf []byte) ([]byte, 
 	resp := bytes.NewBuffer(nil)
 
 	if wantsServerInfo {
-		f.ServerInfo = QueryStateToServerInfo(q.state)
-		f.ServerInfoLength = f.ServerInfo.Size()
-		f.PayloadLength += uint16(f.ServerInfoLength) + 4
+		f.ServerInfo = ServerInfoFromQueryState(q.state)
+		size := f.ServerInfo.Size()
+		f.ServerInfoLength = &size
+		f.PayloadLength += uint16(*f.ServerInfoLength) + 4
+	}
+
+	if wantsMetrics {
+		f.Metrics = MetricsFromQueryState(q.state)
+		size := f.Metrics.Size()
+		f.MetricsLength = &size
+		f.PayloadLength += uint16(*f.MetricsLength) + 4
 	}
 
 	if err := common.WireWrite(resp, q.enc, f); err != nil {

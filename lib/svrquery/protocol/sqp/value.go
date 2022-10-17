@@ -41,7 +41,7 @@ func NewDynamicValueWithType(r *packetReader, dt DataType) (int64, *DynamicValue
 
 func dynamicValue(dv *DynamicValue, dt DataType, r *packetReader) (int64, error) {
 	var err error
-	dv.Type = DataType(dt)
+	dv.Type = dt
 	switch dv.Type {
 	case Byte:
 		dv.Value, err = r.ReadByte()
@@ -59,6 +59,9 @@ func dynamicValue(dv *DynamicValue, dt DataType, r *packetReader) (int64, error)
 		var count int64
 		count, dv.Value, err = r.ReadString()
 		return count, err
+	case Float32:
+		dv.Value, err = r.ReadFloat32()
+		return int64(Float32.Size()), err
 	}
 
 	return 0, ErrUnknownDataType(dv.Type)
@@ -89,10 +92,15 @@ func (dv *DynamicValue) String() string {
 	return dv.Value.(string)
 }
 
+// Float32 returns the value as a float32
+func (dv *DynamicValue) Float32() float32 {
+	return dv.Value.(float32)
+}
+
 // MarshalJSON returns the json marshalled version of the dynamic value
 func (dv *DynamicValue) MarshalJSON() ([]byte, error) {
 	switch dv.Type {
-	case Byte, Uint16, Uint32, Uint64, String:
+	case Byte, Uint16, Uint32, Uint64, String, Float32:
 		return json.Marshal(dv.Value)
 	}
 	return nil, ErrUnknownDataType(dv.Type)

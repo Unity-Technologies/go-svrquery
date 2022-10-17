@@ -49,6 +49,18 @@ func (tic *TeamInfoChunk) MarshalJSON() ([]byte, error) {
 	return json.Marshal(tic.Teams)
 }
 
+// MetricsChunk is the response chunk for metrics data
+type MetricsChunk struct {
+	ChunkLength uint32 `json:"-"`
+	MetricCount byte   `json:"-"`
+	Metrics     []float32
+}
+
+// MarshalJSON returns the JSON representation of the metrics
+func (mc *MetricsChunk) MarshalJSON() ([]byte, error) {
+	return json.Marshal(mc.Metrics)
+}
+
 // QueryResponse is the combined response to a query request
 type QueryResponse struct {
 	Version     uint16            `json:"version"`
@@ -57,6 +69,7 @@ type QueryResponse struct {
 	ServerRules *ServerRulesChunk `json:"server_rules,omitempty"`
 	PlayerInfo  *PlayerInfoChunk  `json:"player_info,omitempty"`
 	TeamInfo    *TeamInfoChunk    `json:"team_info,omitempty"`
+	Metrics     *MetricsChunk     `json:"metrics,omitempty"`
 }
 
 // MaxClients returns the maximum number of clients.

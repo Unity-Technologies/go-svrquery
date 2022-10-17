@@ -15,19 +15,7 @@ type ServerInfo struct {
 	Port           uint16
 }
 
-// QueryStateToServerInfo converts proto.QueryState to ServerInfo.
-func QueryStateToServerInfo(qs common.QueryState) ServerInfo {
-	return ServerInfo{
-		CurrentPlayers: uint16(qs.CurrentPlayers),
-		MaxPlayers:     uint16(qs.MaxPlayers),
-		ServerName:     qs.ServerName,
-		GameType:       qs.GameType,
-		GameMap:        qs.Map,
-		Port:           qs.Port,
-	}
-}
-
-// Size returns the number of bytes sqpServerInfo will use on the wire.
+// Size returns the number of bytes QueryResponder will use on the wire.
 func (si ServerInfo) Size() uint32 {
 	return uint32(
 		2 + // CurrentPlayers
@@ -38,4 +26,16 @@ func (si ServerInfo) Size() uint32 {
 			len([]byte(si.GameMap)) + 1 +
 			2, // Port
 	)
+}
+
+// ServerInfoFromQueryState converts server info data in common.QueryState to ServerInfo.
+func ServerInfoFromQueryState(qs common.QueryState) *ServerInfo {
+	return &ServerInfo{
+		CurrentPlayers: uint16(qs.CurrentPlayers),
+		MaxPlayers:     uint16(qs.MaxPlayers),
+		ServerName:     qs.ServerName,
+		GameType:       qs.GameType,
+		GameMap:        qs.Map,
+		Port:           qs.Port,
+	}
 }
