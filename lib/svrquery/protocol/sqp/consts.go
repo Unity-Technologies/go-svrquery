@@ -6,7 +6,7 @@ const (
 	DefaultMaxPacketSize = 1472
 
 	// Version is the query protocol version this client uses.
-	Version = uint16(1)
+	Version = uint16(2)
 
 	// MaxMetrics is the maximum number of metrics supported in a request.
 	MaxMetrics = byte(25)
