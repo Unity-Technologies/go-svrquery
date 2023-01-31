@@ -16,19 +16,21 @@ type queryer struct {
 	reader          *packetReader
 	challengeID     uint32
 	requestedChunks byte
+	version         uint16
 }
 
-func newCreator(requestedChunks byte) func(c protocol.Client) protocol.Queryer {
+func newCreator(requestedChunks byte, version uint16) func(c protocol.Client) protocol.Queryer {
 	return func(c protocol.Client) protocol.Queryer {
-		return newQueryer(requestedChunks, DefaultMaxPacketSize, c)
+		return newQueryer(requestedChunks, DefaultMaxPacketSize, version, c)
 	}
 }
 
-func newQueryer(requestedChunks byte, maxPktSize int, c protocol.Client) *queryer {
+func newQueryer(requestedChunks byte, maxPktSize int, version uint16, c protocol.Client) *queryer {
 	return &queryer{
 		c:               c,
 		maxPktSize:      maxPktSize,
 		requestedChunks: requestedChunks,
+		version:         version,
 		reader:          newPacketReader(bufio.NewReaderSize(c, maxPktSize)),
 	}
 }
@@ -57,7 +59,7 @@ func (q *queryer) sendQuery(requestedChunks byte) error {
 		return err
 	}
 
-	if err := binary.Write(pkt, binary.BigEndian, Version); err != nil {
+	if err := binary.Write(pkt, binary.BigEndian, q.version); err != nil {
 		return err
 	}
 
