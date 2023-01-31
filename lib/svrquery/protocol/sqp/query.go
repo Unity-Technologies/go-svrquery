@@ -18,8 +18,10 @@ type queryer struct {
 	requestedChunks byte
 }
 
-func newCreator(c protocol.Client) protocol.Queryer {
-	return newQueryer(ServerInfo|Metrics, DefaultMaxPacketSize, c)
+func newCreator(requestedChunks byte) func(c protocol.Client) protocol.Queryer {
+	return func(c protocol.Client) protocol.Queryer {
+		return newQueryer(requestedChunks, DefaultMaxPacketSize, c)
+	}
 }
 
 func newQueryer(requestedChunks byte, maxPktSize int, c protocol.Client) *queryer {
