@@ -106,6 +106,19 @@ func TestQuery(t *testing.T) {
 	}
 	v9.MatchState = MatchState{}
 
+	v10 := v9
+	v10.Version = 10
+	v10.MatchStateV10 = MatchStateV10{
+		MatchStateV9: MatchStateV9{
+			Phase:                   3,
+			TimePassed:              0,
+			TeamsLeftWithPlayersNum: 0,
+		},
+		CurrentEntityPropertyCount: 2,
+		MaxEntityPropertyCount:     5,
+	}
+	v10.MatchStateV9 = MatchStateV9{}
+
 	cases := []struct {
 		name        string
 		version     byte
@@ -144,6 +157,15 @@ func TestQuery(t *testing.T) {
 			request:     "request-v9",
 			response:    "response-v9",
 			expected:    v9,
+			key:         testKey,
+			expEncypted: true,
+		},
+		{
+			name:        "v10",
+			version:     10,
+			request:     "request-v10",
+			response:    "response-v10",
+			expected:    v10,
 			key:         testKey,
 			expEncypted: true,
 		},

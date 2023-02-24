@@ -174,7 +174,11 @@ func (q *queryer) Query() (resp protocol.Responser, err error) {
 	}
 
 	if i.Version > 2 {
-		if i.Version >= 9 {
+		if i.Version >= 10 {
+			if err = r.Read(&i.MatchStateV10); err != nil {
+				return nil, err
+			}
+		} else if i.Version >= 9 {
 			if err = r.Read(&i.MatchStateV9); err != nil {
 				return nil, err
 			}

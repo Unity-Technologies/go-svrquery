@@ -28,6 +28,8 @@ type Info struct {
 	MatchState
 	// Version 9+
 	MatchStateV9
+	// Version 10+
+	MatchStateV10
 
 	Teams   []Team
 	Clients []Client
@@ -180,6 +182,14 @@ type PerformanceInfo struct {
 	MaxFrameTime           float32
 	AverageUserCommandTime float32
 	MaxUserCommandTime     float32
+}
+
+// MatchStateV10 represents match state contained in a query response.
+// Two new fields on entity count were added in this version of the schema.
+type MatchStateV10 struct {
+	MatchStateV9
+	CurrentEntityPropertyCount uint32
+	MaxEntityPropertyCount     uint32
 }
 
 // MatchStateV9 represents match state contained in a query response.
