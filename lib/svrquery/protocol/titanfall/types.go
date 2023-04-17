@@ -25,7 +25,7 @@ type Info struct {
 	// Version 9+
 	PerformanceInfoV9
 	// Version 2+
-	MatchState
+	MatchStateV6
 	// Version 9+
 	MatchStateV9
 	// Version 10+
@@ -77,6 +77,7 @@ type InstanceInfo struct {
 }
 
 // InstanceInfoV8 represents instance information contained in a query response.
+// We use a separate structure as the order is important for parsing.
 type InstanceInfoV8 struct {
 	Retail         byte
 	InstanceType   byte
@@ -84,6 +85,17 @@ type InstanceInfoV8 struct {
 	NetProtocol    uint16
 	HealthFlags    HealthFlags
 	RandomServerID uint32
+}
+
+// toV1 converts the V8 instance info to the V1 format.
+func (i InstanceInfoV8) toV1() InstanceInfo {
+	return InstanceInfo{
+		Retail:         i.Retail,
+		InstanceType:   i.InstanceType,
+		ClientCRC:      i.ClientCRC,
+		NetProtocol:    i.NetProtocol,
+		RandomServerID: uint64(i.RandomServerID),
+	}
 }
 
 // HealthFlags allows us to read the health bits and output them
@@ -200,6 +212,20 @@ type MatchStateV9 struct {
 	TeamsLeftWithPlayersNum uint16
 }
 
+// toV6 converts the V9 match state to the V6 format. Preserving fields where possible.
+func (m MatchStateV9) toV6() MatchStateV6 {
+	// The older version of the match state is dramatically different to the new version so not
+	// all information is available through the backwards compatibility interface.
+	return MatchStateV6{
+		// The v2 stricture
+		MatchStateV2: MatchStateV2{
+			Phase:      m.Phase,
+			TimePassed: m.TimePassed,
+		},
+		TeamsLeftWithPlayersNum: m.TeamsLeftWithPlayersNum,
+	}
+}
+
 // MatchStateV2 represents match state contained in a query response.
 // This contains a legacy v2 version of matchstate
 type MatchStateV2 struct {
@@ -212,8 +238,8 @@ type MatchStateV2 struct {
 	MaxScore         uint16
 }
 
-// MatchState represents match state contained in a query response.
-type MatchState struct {
+// MatchStateV6 represents match state contained in a query response.
+type MatchStateV6 struct {
 	MatchStateV2
 	TeamsLeftWithPlayersNum uint16
 }

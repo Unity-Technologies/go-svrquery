@@ -166,6 +166,7 @@ func (q *queryer) Query() (resp protocol.Responser, err error) {
 		if err = r.Read(&i.PerformanceInfoV9); err != nil {
 			return nil, err
 		}
+		i.PerformanceInfo = i.PerformanceInfoV9.PerformanceInfo
 	} else if i.Version > 4 {
 		// PerformanceInfo.
 		if err = r.Read(&i.PerformanceInfo); err != nil {
@@ -178,16 +179,19 @@ func (q *queryer) Query() (resp protocol.Responser, err error) {
 			if err = r.Read(&i.MatchStateV10); err != nil {
 				return nil, err
 			}
+			i.MatchStateV9 = i.MatchStateV10.MatchStateV9
+			i.MatchStateV6 = i.MatchStateV10.toV6()
 		} else if i.Version >= 9 {
 			if err = r.Read(&i.MatchStateV9); err != nil {
 				return nil, err
 			}
+			i.MatchStateV6 = i.MatchStateV9.toV6()
 		} else if i.Version > 5 {
-			// MatchState and Teams.
-			if err = r.Read(&i.MatchState); err != nil {
+			// MatchStateV6 and Teams.
+			if err = r.Read(&i.MatchStateV6); err != nil {
 				return nil, err
 			}
-		} else if err = r.Read(&i.MatchState.MatchStateV2); err != nil {
+		} else if err = r.Read(&i.MatchStateV6.MatchStateV2); err != nil {
 			return nil, err
 		}
 
@@ -210,6 +214,7 @@ func (q *queryer) instanceInfo(r *common.BinaryReader, i *Info) (err error) {
 		if err = r.Read(&i.InstanceInfoV8); err != nil {
 			return err
 		}
+		i.InstanceInfo = i.InstanceInfoV8.toV1()
 	} else {
 		if err = r.Read(&i.InstanceInfo); err != nil {
 			return err
