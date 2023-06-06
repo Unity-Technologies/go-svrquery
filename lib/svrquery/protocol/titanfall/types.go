@@ -101,6 +101,7 @@ func (a HealthFlags) MarshalJSON() ([]byte, error) {
 		SlowServerFrames bool
 		Hitching         bool
 		DOS              bool
+		Relay            bool
 	}{}
 	obj.None = a.None()
 	obj.PacketLossIn = a.PacketLossIn()
@@ -110,6 +111,7 @@ func (a HealthFlags) MarshalJSON() ([]byte, error) {
 	obj.SlowServerFrames = a.SlowServerFrames()
 	obj.Hitching = a.Hitching()
 	obj.DOS = a.DOS()
+	obj.Relay = a.Relay()
 
 	return json.Marshal(obj)
 }
@@ -152,6 +154,11 @@ func (a HealthFlags) Hitching() bool {
 // DOS health flag
 func (a HealthFlags) DOS() bool {
 	return (a>>6)&1 == 1
+}
+
+// Relay health flag
+func (a HealthFlags) Relay() bool {
+	return (a>>7)&1 == 1
 }
 
 // BasicInfo represents basic information contained in a query response.
