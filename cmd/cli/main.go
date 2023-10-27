@@ -4,14 +4,11 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
-	"log"
-	"net"
-	"os"
-	"time"
-
 	"github.com/multiplay/go-svrquery/lib/svrquery"
 	"github.com/multiplay/go-svrquery/lib/svrsample"
 	"github.com/multiplay/go-svrquery/lib/svrsample/common"
+	"log"
+	"os"
 )
 
 func main() {
@@ -91,6 +88,16 @@ func serverMode(l *log.Logger, proto, serverAddr string) {
 
 func server(l *log.Logger, proto, address string) error {
 	l.Printf("Starting sample server using protocol %s on %s", proto, address)
+
+	transport, err := svrsample.GetTransport(proto, address)
+	if err != nil {
+		return err
+	}
+	err = transport.Setup()
+	if err != nil {
+		return err
+	}
+
 	responder, err := svrsample.GetResponder(proto, common.QueryState{
 		CurrentPlayers: 1,
 		MaxPlayers:     2,
@@ -103,37 +110,22 @@ func server(l *log.Logger, proto, address string) error {
 		return err
 	}
 
-	addr, err := net.ResolveUDPAddr("udp4", address)
-	if err != nil {
-		return err
-	}
-
-	conn, err := net.ListenUDP("udp4", addr)
-	if err != nil {
-		return err
-	}
-
 	for {
 		buf := make([]byte, 16)
-		_, to, err := conn.ReadFromUDP(buf)
+		err = transport.Read(buf)
 		if err != nil {
-			l.Println("read from udp", err)
+			l.Println("read", err)
 			continue
 		}
 
-		resp, err := responder.Respond(to.String(), buf)
+		resp, err := responder.Respond(transport.Addr(), buf)
 		if err != nil {
-			l.Println("error responding to query", err)
+			l.Println("responding to query", err)
 			continue
 		}
 
-		if err = conn.SetWriteDeadline(time.Now().Add(1 * time.Second)); err != nil {
-			l.Println("error setting write deadline")
-			continue
-		}
-
-		if _, err = conn.WriteTo(resp, to); err != nil {
-			l.Println("error writing response")
+		if err = transport.Write(resp); err != nil {
+			l.Println("writing response")
 		}
 	}
 
