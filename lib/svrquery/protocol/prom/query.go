@@ -47,7 +47,6 @@ func (q *queryer) makeQuery() (*QueryResponse, error) {
 	}
 
 	resp := &QueryResponse{}
-	// TODO: lookup by key (metric name)
 	for _, v := range metrics {
 		switch *v.Name {
 		case currentPlayersMetricName:
@@ -77,15 +76,6 @@ func (q *queryer) makeQuery() (*QueryResponse, error) {
 			}
 		}
 	}
-
-	// ServerInfo.BuildID
-	// ServerInfo.Port
-
-	// serverRules?
-	// query.PlayerInfo.Players
-	// query.TeamInfo.Teams
-
-	// query.Metrics
 
 	return resp, nil
 }

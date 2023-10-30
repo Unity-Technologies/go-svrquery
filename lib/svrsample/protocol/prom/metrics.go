@@ -8,6 +8,10 @@ import (
 
 var _ prometheus.Collector = (*metrics)(nil)
 
+const (
+	metricNamespace = "gameserver"
+)
+
 // metrics holds the current prometheus metrics data for the server
 type metrics struct {
 	currentPlayers prometheus.Gauge
@@ -18,19 +22,19 @@ type metrics struct {
 func newMetrics(reg prometheus.Registerer) *metrics {
 	m := &metrics{
 		currentPlayers: prometheus.NewGauge(prometheus.GaugeOpts{
-			Namespace: "",
+			Namespace: metricNamespace,
 			Subsystem: "",
 			Name:      "current_players",
 			Help:      "Number of players currently connected to the server.",
 		}),
 		maxPlayers: prometheus.NewGauge(prometheus.GaugeOpts{
-			Namespace: "",
+			Namespace: metricNamespace,
 			Subsystem: "",
 			Name:      "max_players",
 			Help:      "Maximum number of players that can connect to the server.",
 		}),
 		serverInfo: prometheus.NewGaugeVec(prometheus.GaugeOpts{
-			Namespace:   "",
+			Namespace:   metricNamespace,
 			Subsystem:   "",
 			Name:        "server_info",
 			Help:        "Server status info.",

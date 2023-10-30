@@ -1,9 +1,10 @@
 package prom
 
 const (
-	currentPlayersMetricName = "current_players"
-	maxPlayersMetricName     = "max_players"
-	serverInfoMetricName     = "server_info"
+	metricNamespace          = "gameserver_"
+	currentPlayersMetricName = metricNamespace + "current_players"
+	maxPlayersMetricName     = metricNamespace + "max_players"
+	serverInfoMetricName     = metricNamespace + "server_info"
 )
 
 // QueryResponse is the combined response to a query request
@@ -14,7 +15,6 @@ type QueryResponse struct {
 	GameType       string  `json:"game_type"`
 	MapName        string  `json:"map"`
 	Port           int64   `json:"port"`
-	//BuildID        string `json:"build_id"`
 }
 
 // MaxClients implements protocol.Responser, returns the maximum number of clients.
