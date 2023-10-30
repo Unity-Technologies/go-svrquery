@@ -27,12 +27,12 @@ func GetResponder(proto string, state common.QueryState) (common.QueryResponder,
 	return nil, fmt.Errorf("%w: %s", ErrProtoNotSupported, proto)
 }
 
-func GetTransport(proto, address string) (common.Transport, error) {
+func GetTransport(proto, address string) (Transport, error) {
 	switch proto {
 	case "sqp":
-		return common.NewUDPTransport(address), nil
+		return NewUDPTransport(address), nil
 	case "prom":
-		return common.NewHTTPTransport(address), nil
+		return NewHTTPTransport(address), nil
 	default:
 		return nil, fmt.Errorf("%w: %s", ErrProtoNotSupported, proto)
 	}

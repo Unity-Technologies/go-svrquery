@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"github.com/multiplay/go-svrquery/lib/svrquery"
+	"github.com/multiplay/go-svrquery/lib/svrquery/protocol"
 	"github.com/multiplay/go-svrquery/lib/svrsample"
 	"github.com/multiplay/go-svrquery/lib/svrsample/common"
 	"log"
@@ -13,7 +14,7 @@ import (
 
 func main() {
 	clientAddr := flag.String("addr", "", "Address to connect to e.g. 127.0.0.1:12345")
-	proto := flag.String("proto", "", "Protocol e.g. sqp, tf2e, tf2e-v7, tf2e-v8")
+	proto := flag.String("proto", "", "Protocol e.g. sqp, tf2e, tf2e-v7, tf2e-v8, prom")
 	key := flag.String("key", "", "Key to use to authenticate")
 	file := flag.String("file", "", "Bulk file to execute to get basic server information")
 	serverAddr := flag.String("server", "", "Address to start server e.g. 127.0.0.1:12121, :23232")
@@ -36,12 +37,12 @@ func main() {
 	switch {
 	case *serverAddr != "":
 		if *proto == "" {
-			bail(l, "No protocol provided in client mode")
+			bail(l, "No protocol provided in server mode")
 		}
 		serverMode(l, *proto, *serverAddr)
 	case *clientAddr != "":
 		if *proto == "" {
-			bail(l, "Protocol required in server mode")
+			bail(l, "Protocol required in client mode")
 		}
 		queryMode(l, *proto, *clientAddr, *key)
 	default:
@@ -50,24 +51,34 @@ func main() {
 }
 
 func queryMode(l *log.Logger, proto, address, key string) {
-	if err := query(proto, address, key); err != nil {
+	client, err := getClient(proto, address, key)
+	if err != nil {
+		l.Fatal(err)
+	}
+	defer client.Close()
+
+	if err := query(client); err != nil {
 		l.Fatal(err)
 	}
 }
 
-func query(proto, address, key string) error {
-	options := make([]svrquery.Option, 0)
-	if key != "" {
-		options = append(options, svrquery.WithKey(key))
+func getClient(proto, address, key string) (protocol.Client, error) {
+	switch proto {
+	case "sqp":
+		options := make([]svrquery.Option, 0)
+		if key != "" {
+			options = append(options, svrquery.WithKey(key))
+		}
+		return svrquery.NewUDPClient(proto, address, options...)
+	case "prom":
+		return svrquery.NewHTTPClient(proto, address)
+	default:
+		return nil, fmt.Errorf("protocol %s not supported", proto)
 	}
+}
 
-	c, err := svrquery.NewClient(proto, address, options...)
-	if err != nil {
-		return err
-	}
-	defer c.Close()
-
-	r, err := c.Query()
+func query(client protocol.Client) error {
+	r, err := client.Query()
 	if err != nil {
 		return err
 	}
@@ -91,11 +102,7 @@ func server(l *log.Logger, proto, address string) error {
 
 	transport, err := svrsample.GetTransport(proto, address)
 	if err != nil {
-		return err
-	}
-	err = transport.Setup()
-	if err != nil {
-		return err
+		return fmt.Errorf("create transport: %w", err)
 	}
 
 	responder, err := svrsample.GetResponder(proto, common.QueryState{
@@ -107,28 +114,16 @@ func server(l *log.Logger, proto, address string) error {
 		Port:           1000,
 	})
 	if err != nil {
-		return err
+		return fmt.Errorf("create responder: %w", err)
 	}
 
-	for {
-		buf := make([]byte, 16)
-		err = transport.Read(buf)
-		if err != nil {
-			l.Println("read", err)
-			continue
-		}
-
-		resp, err := responder.Respond(transport.Addr(), buf)
-		if err != nil {
-			l.Println("responding to query", err)
-			continue
-		}
-
-		if err = transport.Write(resp); err != nil {
-			l.Println("writing response")
-		}
+	// this function will block until the transport is closed
+	err = transport.Start(responder)
+	if err != nil {
+		return fmt.Errorf("transport error")
 	}
 
+	return nil
 }
 
 func bail(l *log.Logger, msg string) {

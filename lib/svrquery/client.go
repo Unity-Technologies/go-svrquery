@@ -17,11 +17,16 @@ var (
 	DefaultNetwork = "udp"
 )
 
-// Option represents a Client option.
-type Option func(*Client) error
+var (
+	_ protocol.Client = (*UDPClient)(nil)
+	_ protocol.Client = (*HTTPClient)(nil)
+)
 
-// Client provides the ability to query a server.
-type Client struct {
+// Option represents a UDPClient option.
+type Option func(*UDPClient) error
+
+// UDPClient provides the ability to query a server.
+type UDPClient struct {
 	protocol string
 	network  string
 	addr     string
@@ -34,7 +39,7 @@ type Client struct {
 
 // WithKey sets the key used for request by for the client.
 func WithKey(key string) Option {
-	return func(c *Client) error {
+	return func(c *UDPClient) error {
 		c.key = key
 		return nil
 	}
@@ -42,20 +47,20 @@ func WithKey(key string) Option {
 
 // WithTimeout sets the read and write timeout for the client.
 func WithTimeout(t time.Duration) Option {
-	return func(c *Client) error {
+	return func(c *UDPClient) error {
 		c.timeout = t
 		return nil
 	}
 }
 
-// NewClient creates a new client that talks to addr.
-func NewClient(proto, addr string, options ...Option) (*Client, error) {
+// NewUDPClient creates a new client that talks to addr.
+func NewUDPClient(proto, addr string, options ...Option) (*UDPClient, error) {
 	f, err := protocol.Get(proto)
 	if err != nil {
 		return nil, err
 	}
 
-	c := &Client{
+	c := &UDPClient{
 		protocol: proto,
 		addr:     addr,
 		network:  DefaultNetwork,
@@ -81,7 +86,7 @@ func NewClient(proto, addr string, options ...Option) (*Client, error) {
 }
 
 // Write implements io.Writer.
-func (c *Client) Write(b []byte) (int, error) {
+func (c *UDPClient) Write(b []byte) (int, error) {
 	if err := c.c.SetWriteDeadline(time.Now().Add(c.timeout)); err != nil {
 		return 0, err
 	}
@@ -90,7 +95,7 @@ func (c *Client) Write(b []byte) (int, error) {
 }
 
 // Read implements io.Reader.
-func (c *Client) Read(b []byte) (int, error) {
+func (c *UDPClient) Read(b []byte) (int, error) {
 	if err := c.c.SetReadDeadline(time.Now().Add(c.timeout)); err != nil {
 		return 0, err
 	}
@@ -107,21 +112,66 @@ func (c *Client) Read(b []byte) (int, error) {
 }
 
 // Close implements io.Closer.
-func (c *Client) Close() error {
+func (c *UDPClient) Close() error {
 	return c.c.Close()
 }
 
-// Key implements protocol.Client.
-func (c *Client) Key() string {
+// Key implements protocol.UDPClient.
+func (c *UDPClient) Key() string {
 	return c.key
 }
 
-// Address implements protocol.Client.
-func (c *Client) Address() string {
+// Address implements protocol.UDPClient.
+func (c *UDPClient) Address() string {
 	return c.addr
 }
 
 // Protocol returns the protocol of the client.
-func (c *Client) Protocol() string {
+func (c *UDPClient) Protocol() string {
 	return c.protocol
+}
+
+type HTTPClient struct {
+	protocol.Queryer
+	address string
+}
+
+func NewHTTPClient(proto, address string) (*HTTPClient, error) {
+	queryerCreator, err := protocol.Get(proto)
+	if err != nil {
+		return nil, err
+	}
+	client := &HTTPClient{address: address}
+	client.Queryer = queryerCreator(client)
+
+	return client, nil
+}
+
+func (c *HTTPClient) Read(p []byte) (n int, err error) {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (c *HTTPClient) Write(p []byte) (n int, err error) {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (c *HTTPClient) Query() (protocol.Responser, error) {
+	return c.Queryer.Query()
+}
+
+func (c *HTTPClient) Key() string {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (c *HTTPClient) Address() string {
+	return c.address
+}
+
+// Close implements io.Closer.
+func (c *HTTPClient) Close() error {
+	// no-op
+	return nil
 }

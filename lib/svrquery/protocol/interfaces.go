@@ -23,6 +23,7 @@ type Mapper interface {
 // Client is an interface which is implemented by types which can act a query transport.
 type Client interface {
 	io.ReadWriteCloser
+	Queryer
 	Key() string
 	Address() string
 }

@@ -91,7 +91,7 @@ func TestCreateClient(t *testing.T) {
 			// Validate key setting
 			if tc.expKey != "" {
 				require.Len(t, options, 1)
-				c := svrquery.Client{}
+				c := svrquery.UDPClient{}
 				require.NoError(t, options[0](&c))
 				require.Equal(t, tc.expKey, c.Key())
 			}
