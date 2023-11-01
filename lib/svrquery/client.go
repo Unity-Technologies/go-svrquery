@@ -32,10 +32,26 @@ type Client struct {
 	key      string
 	timeout  time.Duration
 	protocol.Queryer
-	transport
+	Transport Transport
 }
 
-type transport interface {
+func (c *Client) Read(p []byte) (n int, err error) {
+	return c.Transport.Read(p)
+}
+
+func (c *Client) Write(p []byte) (n int, err error) {
+	return c.Transport.Write(p)
+}
+
+func (c *Client) Close() error {
+	return c.Transport.Close()
+}
+
+func (c *Client) Address() string {
+	return c.Transport.Address()
+}
+
+type Transport interface {
 	Setup() error
 	Address() string
 	Read(b []byte) (int, error)
@@ -55,7 +71,7 @@ func WithKey(key string) Option {
 // WithTimeout sets the read and write timeout for the client.
 func WithTimeout(t time.Duration) Option {
 	return func(c *Client) error {
-		c.transport.SetTimeout(t)
+		c.Transport.SetTimeout(t)
 		return nil
 	}
 }
@@ -79,12 +95,12 @@ func NewClient(proto, addr string, options ...Option) (*Client, error) {
 		}
 	}
 
-	var t transport
+	var t Transport
 	switch proto {
 	case "sqp":
 		t = &udpTransport{address: addr}
 	case "prom":
-		t = &httpTransport{}
+		t = &HTTPTransport{}
 	default:
 		return nil, fmt.Errorf("protocol %s not supported", proto)
 	}
@@ -93,7 +109,7 @@ func NewClient(proto, addr string, options ...Option) (*Client, error) {
 		return nil, fmt.Errorf("setup client transport: %w", err)
 	}
 
-	c.transport = t
+	c.Transport = t
 
 	return c, nil
 }
@@ -102,8 +118,8 @@ func (c *Client) Query() (protocol.Responser, error) {
 	return c.Queryer.Query()
 }
 
-var _ transport = (*udpTransport)(nil)
-var _ transport = (*httpTransport)(nil)
+var _ Transport = (*udpTransport)(nil)
+var _ Transport = (*HTTPTransport)(nil)
 
 type udpTransport struct {
 	address    string
@@ -177,36 +193,36 @@ func (c *Client) Protocol() string {
 	return c.protocol
 }
 
-type httpTransport struct {
+type HTTPTransport struct {
 	address    string
 	HttpClient *http.Client
 }
 
-func (h httpTransport) Setup() error {
+func (h HTTPTransport) Setup() error {
 	h.HttpClient = &http.Client{}
 	return nil
 }
 
-func (h httpTransport) Address() string {
+func (h HTTPTransport) Address() string {
 	return h.address
 }
 
-func (h httpTransport) Read(b []byte) (int, error) {
+func (h HTTPTransport) Read(b []byte) (int, error) {
 	//TODO implement me
 	panic("implement me")
 }
 
-func (h httpTransport) Write(b []byte) (int, error) {
+func (h HTTPTransport) Write(b []byte) (int, error) {
 	//TODO implement me
 	panic("implement me")
 }
 
 // Close implements io.Closer.
-func (h httpTransport) Close() error {
+func (h HTTPTransport) Close() error {
 	// no-op
 	return nil
 }
 
-func (h httpTransport) SetTimeout(t time.Duration) {
+func (h HTTPTransport) SetTimeout(t time.Duration) {
 	h.HttpClient.Timeout = t
 }

@@ -31,11 +31,13 @@ func (q *queryer) Query() (protocol.Responser, error) {
 func (q *queryer) makeQuery() (*QueryResponse, error) {
 	client, ok := q.c.(*svrquery.Client)
 	if !ok {
-		return nil, fmt.Errorf("expected http transport, got %T", q.c)
+		return nil, fmt.Errorf("expected svrquery.Client, got %T", q.c)
 	}
-	client
-	//t, ok := client.Transport.(svrquery.HttpTransport)
-	res, err := httpTransport.httpClient.Get(q.c.Address())
+	httpTransport, ok := client.Transport.(svrquery.HTTPTransport)
+	if !ok {
+		return nil, fmt.Errorf("expected svrquery.HTTPTransport, got %T", q.c)
+	}
+	res, err := httpTransport.HttpClient.Get(q.c.Address())
 	if err != nil {
 		return nil, fmt.Errorf("http get: %w", err)
 	}
