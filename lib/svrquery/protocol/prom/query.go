@@ -3,10 +3,11 @@ package prom
 import (
 	"bytes"
 	"fmt"
-	"github.com/multiplay/go-svrquery/lib/svrquery/protocol"
-	"github.com/prometheus/common/expfmt"
 	"io"
 	"strconv"
+
+	"github.com/multiplay/go-svrquery/lib/svrquery/protocol"
+	"github.com/prometheus/common/expfmt"
 )
 
 const defaultBufSize = 4096

@@ -4,10 +4,10 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
-	"github.com/multiplay/go-svrquery/lib/svrquery"
 	"log"
 	"os"
 
+	"github.com/multiplay/go-svrquery/lib/svrquery"
 	"github.com/multiplay/go-svrquery/lib/svrquery/protocol"
 	"github.com/multiplay/go-svrquery/lib/svrsample"
 	"github.com/multiplay/go-svrquery/lib/svrsample/common"

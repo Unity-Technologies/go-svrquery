@@ -73,28 +73,25 @@ func NewClient(proto, addr string, options ...Option) (*Client, error) {
 	}
 	c.Queryer = f(c)
 
-	// TODO: move keys & timeout to transport?
+	var t transport
+	switch proto {
+	case "prom":
+		t = &httpTransport{address: addr}
+	default:
+		// defaulting to udp
+		t = &udpTransport{address: addr}
+	}
+	c.transport = t
+
 	for _, o := range options {
 		if err := o(c); err != nil {
 			return nil, err
 		}
 	}
 
-	var t transport
-	switch proto {
-	case "sqp":
-		t = &udpTransport{address: addr}
-	case "prom":
-		t = &httpTransport{address: addr}
-	default:
-		return nil, fmt.Errorf("protocol %s not supported", proto)
-	}
-
 	if err := t.Setup(); err != nil {
 		return nil, fmt.Errorf("setup client transport: %w", err)
 	}
-
-	c.transport = t
 
 	return c, nil
 }
