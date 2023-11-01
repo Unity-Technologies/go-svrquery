@@ -1,25 +1,27 @@
 package prom
 
 import (
+	"bytes"
 	"fmt"
-	"github.com/multiplay/go-svrquery/lib/svrquery"
-	"strconv"
-
 	"github.com/multiplay/go-svrquery/lib/svrquery/protocol"
 	"github.com/prometheus/common/expfmt"
+	"io"
+	"strconv"
 )
 
+const defaultBufSize = 4096
+
 type queryer struct {
-	c protocol.Client
+	client protocol.Client
 }
 
 func newCreator(c protocol.Client) protocol.Queryer {
 	return newQueryer(c)
 }
 
-func newQueryer(c protocol.Client) *queryer {
+func newQueryer(client protocol.Client) *queryer {
 	return &queryer{
-		c: c,
+		client: client,
 	}
 }
 
@@ -29,20 +31,17 @@ func (q *queryer) Query() (protocol.Responser, error) {
 }
 
 func (q *queryer) makeQuery() (*QueryResponse, error) {
-	client, ok := q.c.(*svrquery.Client)
-	if !ok {
-		return nil, fmt.Errorf("expected svrquery.Client, got %T", q.c)
+	// FIXME: this won't work if the response is larger than defaultBufSize
+	responseBytes := make([]byte, defaultBufSize)
+	n, err := q.client.Read(responseBytes)
+	if n > 0 {
+		responseBytes = responseBytes[:n]
 	}
-	httpTransport, ok := client.Transport.(svrquery.HTTPTransport)
-	if !ok {
-		return nil, fmt.Errorf("expected svrquery.HTTPTransport, got %T", q.c)
-	}
-	res, err := httpTransport.HttpClient.Get(q.c.Address())
-	if err != nil {
-		return nil, fmt.Errorf("http get: %w", err)
+	if err != nil && err != io.EOF {
+		return nil, fmt.Errorf("query response: %w", err)
 	}
 	var parser expfmt.TextParser
-	metrics, err := parser.TextToMetricFamilies(res.Body)
+	metrics, err := parser.TextToMetricFamilies(bytes.NewReader(responseBytes))
 	if err != nil {
 		return nil, err
 	}

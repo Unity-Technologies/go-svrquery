@@ -1,6 +1,7 @@
 package svrquery
 
 import (
+	"errors"
 	"fmt"
 	"net"
 	"net/http"
@@ -32,26 +33,10 @@ type Client struct {
 	key      string
 	timeout  time.Duration
 	protocol.Queryer
-	Transport Transport
+	transport
 }
 
-func (c *Client) Read(p []byte) (n int, err error) {
-	return c.Transport.Read(p)
-}
-
-func (c *Client) Write(p []byte) (n int, err error) {
-	return c.Transport.Write(p)
-}
-
-func (c *Client) Close() error {
-	return c.Transport.Close()
-}
-
-func (c *Client) Address() string {
-	return c.Transport.Address()
-}
-
-type Transport interface {
+type transport interface {
 	Setup() error
 	Address() string
 	Read(b []byte) (int, error)
@@ -71,7 +56,7 @@ func WithKey(key string) Option {
 // WithTimeout sets the read and write timeout for the client.
 func WithTimeout(t time.Duration) Option {
 	return func(c *Client) error {
-		c.Transport.SetTimeout(t)
+		c.transport.SetTimeout(t)
 		return nil
 	}
 }
@@ -95,12 +80,12 @@ func NewClient(proto, addr string, options ...Option) (*Client, error) {
 		}
 	}
 
-	var t Transport
+	var t transport
 	switch proto {
 	case "sqp":
 		t = &udpTransport{address: addr}
 	case "prom":
-		t = &HTTPTransport{}
+		t = &httpTransport{address: addr}
 	default:
 		return nil, fmt.Errorf("protocol %s not supported", proto)
 	}
@@ -109,7 +94,7 @@ func NewClient(proto, addr string, options ...Option) (*Client, error) {
 		return nil, fmt.Errorf("setup client transport: %w", err)
 	}
 
-	c.Transport = t
+	c.transport = t
 
 	return c, nil
 }
@@ -118,8 +103,8 @@ func (c *Client) Query() (protocol.Responser, error) {
 	return c.Queryer.Query()
 }
 
-var _ Transport = (*udpTransport)(nil)
-var _ Transport = (*HTTPTransport)(nil)
+var _ transport = (*udpTransport)(nil)
+var _ transport = (*httpTransport)(nil)
 
 type udpTransport struct {
 	address    string
@@ -193,36 +178,39 @@ func (c *Client) Protocol() string {
 	return c.protocol
 }
 
-type HTTPTransport struct {
+type httpTransport struct {
 	address    string
-	HttpClient *http.Client
+	httpClient *http.Client
 }
 
-func (h HTTPTransport) Setup() error {
-	h.HttpClient = &http.Client{}
+func (h *httpTransport) Setup() error {
+	h.httpClient = &http.Client{}
 	return nil
 }
 
-func (h HTTPTransport) Address() string {
+func (h *httpTransport) Address() string {
 	return h.address
 }
 
-func (h HTTPTransport) Read(b []byte) (int, error) {
-	//TODO implement me
-	panic("implement me")
+func (h *httpTransport) Read(b []byte) (int, error) {
+	res, err := h.httpClient.Get(h.address)
+	if err != nil {
+		return 0, fmt.Errorf("http get: %w", err)
+	}
+
+	return res.Body.Read(b)
 }
 
-func (h HTTPTransport) Write(b []byte) (int, error) {
-	//TODO implement me
-	panic("implement me")
+func (h *httpTransport) Write(b []byte) (int, error) {
+	return 0, errors.New("httpTransport.Write is unused")
 }
 
 // Close implements io.Closer.
-func (h HTTPTransport) Close() error {
+func (h *httpTransport) Close() error {
 	// no-op
 	return nil
 }
 
-func (h HTTPTransport) SetTimeout(t time.Duration) {
-	h.HttpClient.Timeout = t
+func (h *httpTransport) SetTimeout(t time.Duration) {
+	h.httpClient.Timeout = t
 }
