@@ -1,7 +1,9 @@
 package svrquery
 
 import (
+	"fmt"
 	"net"
+	"net/http"
 	"time"
 
 	"github.com/multiplay/go-svrquery/lib/svrquery/protocol"
@@ -18,28 +20,33 @@ var (
 )
 
 var (
-	_ protocol.Client = (*UDPClient)(nil)
-	_ protocol.Client = (*HTTPClient)(nil)
+	_ protocol.Client = (*Client)(nil)
 )
 
-// Option represents a UDPClient option.
-type Option func(*UDPClient) error
+// Option represents a Client option.
+type Option func(*Client) error
 
-// UDPClient provides the ability to query a server.
-type UDPClient struct {
+// Client provides the ability to query a server.
+type Client struct {
 	protocol string
-	network  string
-	addr     string
-	ua       *net.UDPAddr
 	key      string
 	timeout  time.Duration
-	c        *net.UDPConn
 	protocol.Queryer
+	transport
+}
+
+type transport interface {
+	Setup() error
+	Address() string
+	Read(b []byte) (int, error)
+	Write(b []byte) (int, error)
+	Close() error
+	SetTimeout(time.Duration)
 }
 
 // WithKey sets the key used for request by for the client.
 func WithKey(key string) Option {
-	return func(c *UDPClient) error {
+	return func(c *Client) error {
 		c.key = key
 		return nil
 	}
@@ -47,64 +54,104 @@ func WithKey(key string) Option {
 
 // WithTimeout sets the read and write timeout for the client.
 func WithTimeout(t time.Duration) Option {
-	return func(c *UDPClient) error {
-		c.timeout = t
+	return func(c *Client) error {
+		c.transport.SetTimeout(t)
 		return nil
 	}
 }
 
-// NewUDPClient creates a new client that talks to addr.
-func NewUDPClient(proto, addr string, options ...Option) (*UDPClient, error) {
+// NewClient creates a new client that talks to address.
+func NewClient(proto, addr string, options ...Option) (*Client, error) {
 	f, err := protocol.Get(proto)
 	if err != nil {
 		return nil, err
 	}
 
-	c := &UDPClient{
+	c := &Client{
 		protocol: proto,
-		addr:     addr,
-		network:  DefaultNetwork,
-		timeout:  DefaultTimeout,
 	}
 	c.Queryer = f(c)
 
+	// TODO: move keys & timeout to transport?
 	for _, o := range options {
 		if err := o(c); err != nil {
 			return nil, err
 		}
 	}
 
-	if c.ua, err = net.ResolveUDPAddr(c.network, addr); err != nil {
-		return nil, err
+	var t transport
+	switch proto {
+	case "sqp":
+		t = &udpTransport{address: addr}
+	case "prom":
+		t = &httpTransport{}
+	default:
+		return nil, fmt.Errorf("protocol %s not supported", proto)
 	}
 
-	if c.c, err = net.DialUDP(c.network, nil, c.ua); err != nil {
-		return nil, err
+	if err := t.Setup(); err != nil {
+		return nil, fmt.Errorf("setup client transport: %w", err)
 	}
+
+	c.transport = t
 
 	return c, nil
 }
 
+func (c *Client) Query() (protocol.Responser, error) {
+	return c.Queryer.Query()
+}
+
+var _ transport = (*udpTransport)(nil)
+var _ transport = (*httpTransport)(nil)
+
+type udpTransport struct {
+	address    string
+	timeout    time.Duration
+	connection *net.UDPConn
+	udpAddress *net.UDPAddr
+}
+
+// Address implements transport.Address.
+func (u *udpTransport) Address() string {
+	return u.address
+}
+
+// Setup implements transport.Setup.
+func (u *udpTransport) Setup() error {
+	udpNet := "udp"
+	udpAddr, err := net.ResolveUDPAddr(udpNet, u.address)
+	if err != nil {
+		return err
+	}
+	u.udpAddress = udpAddr
+
+	if u.connection, err = net.DialUDP(udpNet, nil, u.udpAddress); err != nil {
+		return err
+	}
+	return nil
+}
+
 // Write implements io.Writer.
-func (c *UDPClient) Write(b []byte) (int, error) {
-	if err := c.c.SetWriteDeadline(time.Now().Add(c.timeout)); err != nil {
+func (u *udpTransport) Write(b []byte) (int, error) {
+	if err := u.connection.SetWriteDeadline(time.Now().Add(u.timeout)); err != nil {
 		return 0, err
 	}
 
-	return c.c.Write(b)
+	return u.connection.Write(b)
 }
 
 // Read implements io.Reader.
-func (c *UDPClient) Read(b []byte) (int, error) {
-	if err := c.c.SetReadDeadline(time.Now().Add(c.timeout)); err != nil {
+func (u *udpTransport) Read(b []byte) (int, error) {
+	if err := u.connection.SetReadDeadline(time.Now().Add(u.timeout)); err != nil {
 		return 0, err
 	}
 
 	for {
-		n, addr, err := c.c.ReadFromUDP(b)
+		n, addr, err := u.connection.ReadFromUDP(b)
 		if err != nil {
 			return 0, err
-		} else if addr.String() == c.ua.String() { // We use String as IP's can be different byte but the same value.
+		} else if addr.String() == u.udpAddress.String() { // We use String as IP's can be different byte but the same value.
 			return n, nil
 		}
 		// Packet from unexpected source just ignore.
@@ -112,66 +159,54 @@ func (c *UDPClient) Read(b []byte) (int, error) {
 }
 
 // Close implements io.Closer.
-func (c *UDPClient) Close() error {
-	return c.c.Close()
+func (u *udpTransport) Close() error {
+	return u.connection.Close()
 }
 
-// Key implements protocol.UDPClient.
-func (c *UDPClient) Key() string {
+func (u *udpTransport) SetTimeout(t time.Duration) {
+	u.timeout = t
+}
+
+// Key implements protocol.Client.
+func (c *Client) Key() string {
 	return c.key
 }
 
-// Address implements protocol.UDPClient.
-func (c *UDPClient) Address() string {
-	return c.addr
-}
-
 // Protocol returns the protocol of the client.
-func (c *UDPClient) Protocol() string {
+func (c *Client) Protocol() string {
 	return c.protocol
 }
 
-type HTTPClient struct {
-	protocol.Queryer
-	address string
+type httpTransport struct {
+	address    string
+	HttpClient *http.Client
 }
 
-func NewHTTPClient(proto, address string) (*HTTPClient, error) {
-	queryerCreator, err := protocol.Get(proto)
-	if err != nil {
-		return nil, err
-	}
-	client := &HTTPClient{address: address}
-	client.Queryer = queryerCreator(client)
-
-	return client, nil
+func (h httpTransport) Setup() error {
+	h.HttpClient = &http.Client{}
+	return nil
 }
 
-func (c *HTTPClient) Read(p []byte) (n int, err error) {
+func (h httpTransport) Address() string {
+	return h.address
+}
+
+func (h httpTransport) Read(b []byte) (int, error) {
 	//TODO implement me
 	panic("implement me")
 }
 
-func (c *HTTPClient) Write(p []byte) (n int, err error) {
+func (h httpTransport) Write(b []byte) (int, error) {
 	//TODO implement me
 	panic("implement me")
-}
-
-func (c *HTTPClient) Query() (protocol.Responser, error) {
-	return c.Queryer.Query()
-}
-
-func (c *HTTPClient) Key() string {
-	//TODO implement me
-	panic("implement me")
-}
-
-func (c *HTTPClient) Address() string {
-	return c.address
 }
 
 // Close implements io.Closer.
-func (c *HTTPClient) Close() error {
+func (h httpTransport) Close() error {
 	// no-op
 	return nil
+}
+
+func (h httpTransport) SetTimeout(t time.Duration) {
+	h.HttpClient.Timeout = t
 }

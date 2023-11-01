@@ -2,8 +2,7 @@ package prom
 
 import (
 	"fmt"
-	"log/slog"
-	"net/http"
+	"github.com/multiplay/go-svrquery/lib/svrquery"
 	"strconv"
 
 	"github.com/multiplay/go-svrquery/lib/svrquery/protocol"
@@ -11,8 +10,7 @@ import (
 )
 
 type queryer struct {
-	c          protocol.Client
-	httpClient *http.Client
+	c protocol.Client
 }
 
 func newCreator(c protocol.Client) protocol.Queryer {
@@ -21,22 +19,23 @@ func newCreator(c protocol.Client) protocol.Queryer {
 
 func newQueryer(c protocol.Client) *queryer {
 	return &queryer{
-		c:          c,
-		httpClient: &http.Client{},
+		c: c,
 	}
 }
 
 // Query implements protocol.Queryer.
 func (q *queryer) Query() (protocol.Responser, error) {
-	resp, err := q.makeQuery()
-	if err != nil {
-		return nil, err
-	}
-	return resp, nil
+	return q.makeQuery()
 }
 
 func (q *queryer) makeQuery() (*QueryResponse, error) {
-	res, err := q.httpClient.Get(q.c.Address())
+	client, ok := q.c.(*svrquery.Client)
+	if !ok {
+		return nil, fmt.Errorf("expected http transport, got %T", q.c)
+	}
+	client
+	//t, ok := client.Transport.(svrquery.HttpTransport)
+	res, err := httpTransport.httpClient.Get(q.c.Address())
 	if err != nil {
 		return nil, fmt.Errorf("http get: %w", err)
 	}
@@ -55,7 +54,7 @@ func (q *queryer) makeQuery() (*QueryResponse, error) {
 			resp.MaxPlayers = *v.Metric[0].Gauge.Value
 		case serverInfoMetricName:
 			if len(v.Metric) == 0 || v.Metric[0] == nil || len(v.Metric[0].Label) == 0 {
-				slog.Error("server_info metric is missing labels")
+				// server_info metric is missing labels
 				continue
 			}
 			for _, l := range v.Metric[0].Label {
@@ -69,7 +68,8 @@ func (q *queryer) makeQuery() (*QueryResponse, error) {
 				case "port":
 					portInt, err := strconv.ParseInt(*l.Value, 10, 64)
 					if err != nil {
-						slog.Error("invalid port", "port", *l.Value)
+						// invalid port
+						break
 					}
 					resp.Port = portInt
 				}

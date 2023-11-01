@@ -94,7 +94,7 @@ func NewHTTPTransport(address string) HTTPTransport {
 func (h HTTPTransport) Start(responder common.QueryResponder) error {
 	promResponder, ok := responder.(*prom.QueryResponder)
 	if !ok {
-		return errors.New("bad responder type")
+		return errors.New(fmt.Sprintf("bad responder type, expected prom.QueryResponder but got %T", responder))
 	}
 
 	listener, err := net.Listen("tcp", h.address)

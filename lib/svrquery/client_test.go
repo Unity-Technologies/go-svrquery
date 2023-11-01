@@ -29,7 +29,7 @@ func TestNewClient(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			c, err := NewUDPClient(tc.protocol, tc.addr, WithKey("test"), WithTimeout(time.Second))
+			c, err := NewClient(tc.protocol, tc.addr, WithKey("test"), WithTimeout(time.Second))
 			if tc.err {
 				require.Error(t, err)
 				require.Nil(t, c)
@@ -52,7 +52,7 @@ func TestQuery(t *testing.T) {
 		t.Skip("env TEST_QUERY_PROTO not set")
 	}
 
-	c, err := NewUDPClient(proto, addr)
+	c, err := NewClient(proto, addr)
 	require.NoError(t, err)
 	for i := 0; i < 5; i++ {
 		r, err := c.Query()

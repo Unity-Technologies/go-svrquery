@@ -5,11 +5,12 @@ import (
 	"flag"
 	"fmt"
 	"github.com/multiplay/go-svrquery/lib/svrquery"
+	"log"
+	"os"
+
 	"github.com/multiplay/go-svrquery/lib/svrquery/protocol"
 	"github.com/multiplay/go-svrquery/lib/svrsample"
 	"github.com/multiplay/go-svrquery/lib/svrsample/common"
-	"log"
-	"os"
 )
 
 func main() {
@@ -51,33 +52,25 @@ func main() {
 }
 
 func queryMode(l *log.Logger, proto, address, key string) {
-	client, err := getClient(proto, address, key)
+	// setup client
+	options := make([]svrquery.Option, 0)
+	if key != "" {
+		options = append(options, svrquery.WithKey(key))
+	}
+
+	client, err := svrquery.NewClient(proto, address, options...)
 	if err != nil {
 		l.Fatal(err)
 	}
 	defer client.Close()
 
+	// run query
 	if err := query(client); err != nil {
 		l.Fatal(err)
 	}
 }
 
-func getClient(proto, address, key string) (protocol.Client, error) {
-	switch proto {
-	case "sqp":
-		options := make([]svrquery.Option, 0)
-		if key != "" {
-			options = append(options, svrquery.WithKey(key))
-		}
-		return svrquery.NewUDPClient(proto, address, options...)
-	case "prom":
-		return svrquery.NewHTTPClient(proto, address)
-	default:
-		return nil, fmt.Errorf("protocol %s not supported", proto)
-	}
-}
-
-func query(client protocol.Client) error {
+func query(client protocol.Queryer) error {
 	r, err := client.Query()
 	if err != nil {
 		return err

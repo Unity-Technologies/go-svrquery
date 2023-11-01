@@ -156,7 +156,7 @@ func processBulkEntry(entry string) (*BulkResponseItem, error) {
 		return item, nil
 	}
 
-	client, err := svrquery.NewUDPClient(querySection, addressSection, options...)
+	client, err := svrquery.NewClient(querySection, addressSection, options...)
 	if err != nil {
 		item.Error = fmt.Sprintf("create client: %s", err)
 		return item, nil
