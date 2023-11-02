@@ -5,5 +5,5 @@ import (
 )
 
 func init() {
-	protocol.MustRegister("prom", newCreator)
+	protocol.MustRegister(protocol.Prometheus, newCreator)
 }

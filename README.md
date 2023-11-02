@@ -2,10 +2,10 @@
 
 go-svrquery is a [Go](http://golang.org/) client for talking to game servers using various query protocols.
 
-Features
+ Features
 --------
 * Support for various game server query protocol's including:
-** SQP, TF2E
+** SQP, TF2E, Prometheus
 
 Installation
 ------------
@@ -22,7 +22,6 @@ package main
 
 import (
 	"log"
-	"time"
 
 	"github.com/multiplay/go-svrquery/lib/svrquery"
 )
@@ -40,6 +39,29 @@ func main() {
 	}
 	log.Printf("%#v\n", r)
 }
+```
+
+### Prometheus
+
+To scape metrics exposed in Prometheus/OpenMetrics format, use the protocol `prom`, and the URL of the HTTP metrics 
+endpoint. For example:
+
+```go
+client, err := svrquery.NewClient("prom", "http://127.0.0.1:9100/metrics")
+```
+
+The library will read the following metrics:
+
+```text
+# HELP gameserver_current_players Number of players currently connected to the server.
+# TYPE gameserver_current_players gauge
+gameserver_current_players 1
+# HELP gameserver_max_players Maximum number of players that can connect to the server.
+# TYPE gameserver_max_players gauge
+gameserver_max_players 2
+# HELP gameserver_server_info Server status info.
+# TYPE gameserver_server_info gauge
+gameserver_server_info{game_type="Game Type",map_name="Map",port="1000",server_name="Name"} 1
 ```
 
 CLI
@@ -71,7 +93,7 @@ This enables you make queries to servers using the specified protocol, and retur
 
 This tool also provides the ability to start a very basic sample server using a given protocol.
 
-Currently, only `sqp` is supported
+Currently, only `sqp` and `prom` are supported
 
 ```
 ./go-svrquery -server :12121 -proto sqp

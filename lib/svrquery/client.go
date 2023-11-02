@@ -73,15 +73,13 @@ func NewClient(proto, addr string, options ...Option) (*Client, error) {
 	}
 	c.Queryer = f(c)
 
-	var t transport
 	switch proto {
 	case "prom":
-		t = &httpTransport{address: addr}
+		c.transport = newHTTPTransport(addr)
 	default:
 		// defaulting to udp
-		t = &udpTransport{address: addr}
+		c.transport = newUDPTransport(addr)
 	}
-	c.transport = t
 
 	for _, o := range options {
 		if err := o(c); err != nil {
@@ -89,7 +87,7 @@ func NewClient(proto, addr string, options ...Option) (*Client, error) {
 		}
 	}
 
-	if err := t.Setup(); err != nil {
+	if err := c.transport.Setup(); err != nil {
 		return nil, fmt.Errorf("setup client transport: %w", err)
 	}
 
@@ -110,6 +108,10 @@ type udpTransport struct {
 	udpAddress *net.UDPAddr
 }
 
+func newUDPTransport(address string) *udpTransport {
+	return &udpTransport{address: address}
+}
+
 // Address implements transport.Address.
 func (u *udpTransport) Address() string {
 	return u.address
@@ -117,14 +119,13 @@ func (u *udpTransport) Address() string {
 
 // Setup implements transport.Setup.
 func (u *udpTransport) Setup() error {
-	udpNet := "udp"
-	udpAddr, err := net.ResolveUDPAddr(udpNet, u.address)
+	udpAddr, err := net.ResolveUDPAddr(DefaultNetwork, u.address)
 	if err != nil {
 		return err
 	}
 	u.udpAddress = udpAddr
 
-	if u.connection, err = net.DialUDP(udpNet, nil, u.udpAddress); err != nil {
+	if u.connection, err = net.DialUDP(DefaultNetwork, nil, u.udpAddress); err != nil {
 		return err
 	}
 	return nil
@@ -180,8 +181,14 @@ type httpTransport struct {
 	httpClient *http.Client
 }
 
+func newHTTPTransport(address string) *httpTransport {
+	t := &httpTransport{address: address}
+	t.httpClient = &http.Client{}
+	return t
+}
+
 func (h *httpTransport) Setup() error {
-	h.httpClient = &http.Client{}
+	// no-op
 	return nil
 }
 
