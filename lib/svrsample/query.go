@@ -3,10 +3,9 @@ package svrsample
 import (
 	"errors"
 	"fmt"
-	"github.com/multiplay/go-svrquery/lib/svrsample/protocol/prom"
 
 	"github.com/multiplay/go-svrquery/lib/svrsample/common"
-
+	"github.com/multiplay/go-svrquery/lib/svrsample/protocol/prom"
 	"github.com/multiplay/go-svrquery/lib/svrsample/protocol/sqp"
 )
 

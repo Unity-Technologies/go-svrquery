@@ -3,6 +3,7 @@ package svrquery
 import (
 	"errors"
 	"fmt"
+	"io"
 	"net"
 	"net/http"
 	"time"
@@ -36,15 +37,6 @@ type Client struct {
 	transport
 }
 
-type transport interface {
-	Setup() error
-	Address() string
-	Read(b []byte) (int, error)
-	Write(b []byte) (int, error)
-	Close() error
-	SetTimeout(time.Duration)
-}
-
 // WithKey sets the key used for request by for the client.
 func WithKey(key string) Option {
 	return func(c *Client) error {
@@ -61,7 +53,7 @@ func WithTimeout(t time.Duration) Option {
 	}
 }
 
-// NewClient creates a new client that talks to address.
+// NewClient creates a new client that talks to addr using proto.
 func NewClient(proto, addr string, options ...Option) (*Client, error) {
 	f, err := protocol.Get(proto)
 	if err != nil {
@@ -98,8 +90,17 @@ func (c *Client) Query() (protocol.Responser, error) {
 	return c.Queryer.Query()
 }
 
-var _ transport = (*udpTransport)(nil)
-var _ transport = (*httpTransport)(nil)
+var (
+	_ transport = (*udpTransport)(nil)
+	_ transport = (*httpTransport)(nil)
+)
+
+type transport interface {
+	Setup() error
+	Address() string
+	SetTimeout(time.Duration)
+	io.ReadWriteCloser
+}
 
 type udpTransport struct {
 	address    string

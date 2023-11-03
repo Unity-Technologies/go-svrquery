@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -110,8 +111,11 @@ func server(l *log.Logger, proto, address string) error {
 		return fmt.Errorf("create responder: %w", err)
 	}
 
+	// TODO: implement cancellable context
+	ctx, _ := context.WithCancel(context.Background())
+
 	// this function will block until the transport is closed
-	err = transport.Start(responder)
+	err = transport.Start(ctx, responder)
 	if err != nil {
 		return fmt.Errorf("transport error")
 	}

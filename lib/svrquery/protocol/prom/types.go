@@ -1,7 +1,7 @@
 package prom
 
 const (
-	metricNamespace          = "gameserver_"
+	metricNamespace          = "" // adjust this if we want to enforce a namespace/prefix for metrics
 	currentPlayersMetricName = metricNamespace + "current_players"
 	maxPlayersMetricName     = metricNamespace + "max_players"
 	serverInfoMetricName     = metricNamespace + "server_info"

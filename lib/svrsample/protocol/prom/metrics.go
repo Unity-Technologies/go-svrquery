@@ -9,7 +9,7 @@ import (
 var _ prometheus.Collector = (*metrics)(nil)
 
 const (
-	metricNamespace = "gameserver"
+	metricNamespace = ""
 )
 
 // metrics holds the current prometheus metrics data for the server

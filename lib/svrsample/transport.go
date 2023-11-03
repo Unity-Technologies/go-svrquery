@@ -1,6 +1,7 @@
 package svrsample
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"github.com/multiplay/go-svrquery/lib/svrsample/common"
@@ -16,8 +17,10 @@ var (
 	_ Transport = (*HTTPTransport)(nil)
 )
 
+// Transport is an abstraction of the metrics transport (UDP, HTTP, etc.)
 type Transport interface {
-	Start(responder common.QueryResponder) error
+	// Start starts the transport and blocks until it is stopped
+	Start(context.Context, common.QueryResponder) error
 }
 
 type UDPTransport struct {
@@ -30,7 +33,9 @@ func NewUDPTransport(address string) UDPTransport {
 	return UDPTransport{address: address}
 }
 
-func (u UDPTransport) Start(responder common.QueryResponder) error {
+func (u UDPTransport) Start(ctx context.Context, responder common.QueryResponder) error {
+	// TODO: do something with context
+
 	addr, err := net.ResolveUDPAddr("udp4", u.address)
 	if err != nil {
 		return fmt.Errorf("resolved udp: %w", err)
@@ -91,11 +96,13 @@ func NewHTTPTransport(address string) HTTPTransport {
 	return HTTPTransport{address: address}
 }
 
-func (h HTTPTransport) Start(responder common.QueryResponder) error {
+func (h HTTPTransport) Start(ctx context.Context, responder common.QueryResponder) error {
 	promResponder, ok := responder.(*prom.QueryResponder)
 	if !ok {
 		return errors.New(fmt.Sprintf("bad responder type, expected prom.QueryResponder but got %T", responder))
 	}
+
+	// TODO: do something with context
 
 	listener, err := net.Listen("tcp", h.address)
 	if err != nil {
