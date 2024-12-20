@@ -1,9 +1,9 @@
-package sqp
+package prom
 
 import (
 	"github.com/multiplay/go-svrquery/lib/svrquery/protocol"
 )
 
 func init() {
-	protocol.MustRegister(protocol.SQP, newCreator)
+	protocol.MustRegister(protocol.Prometheus, newCreator)
 }

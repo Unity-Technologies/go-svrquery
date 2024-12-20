@@ -21,6 +21,10 @@ func TestNewClient(t *testing.T) {
 			protocol: "tf2e",
 		},
 		{
+			name:     "prometheus",
+			protocol: "prom",
+		},
+		{
 			name:     "invalid-protocol",
 			protocol: "my-protocol",
 			err:      true,
@@ -39,6 +43,10 @@ func TestNewClient(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestRead(t *testing.T) {
+	t.Fatal("unimplemented")
 }
 
 func TestQuery(t *testing.T) {
